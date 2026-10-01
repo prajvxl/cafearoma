@@ -1,0 +1,57 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f5ede4;
+  color: #3c2415;
+}
+.hero {
+  background: #1f2a1a;
+  color: #f5ede4;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  padding: 40px 50px;
+  gap: 30px;
+}
+.eyebrow { letter-spacing: 2px; color: #c9a876; font-size: 0.8rem; margin: 0; }
+.hero h1 { font-size: 2.6rem; margin: 8px 0; }
+.statement { max-width: 420px; color: #d9d2c5; }
+.btn-primary {
+  background: #c9a876; color: #1f2a1a; border: none; padding: 12px 22px;
+  border-radius: 6px; font-weight: 700; cursor: pointer; margin-top: 10px;
+}
+.hero-card {
+  background: #fff; color: #1f2a1a; border-radius: 12px; padding: 24px;
+  min-width: 260px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+.rating-circle {
+  width: 90px; height: 90px; border: 6px solid #c9a876; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  margin: 0 auto 16px; font-size: 1.4rem; font-weight: 700;
+}
+.rating-circle small { font-size: 0.6rem; color: #888; font-weight: 400; }
+.detail-row { display: flex; justify-content: space-between; margin: 6px 0; font-size: 0.9rem; }
+
+section { padding: 30px 50px; }
+section h2 { color: #1f2a1a; }
+
+.cards { display: flex; flex-wrap: wrap; gap: 16px; }
+.card {
+  background: #fff; border-radius: 10px; padding: 18px; min-width: 220px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+}
+
+#orderForm { display: flex; flex-wrap: wrap; gap: 10px; }
+#orderForm input, #orderForm select {
+  flex: 1; min-width: 180px; padding: 10px; border-radius: 6px; border: 1px solid #ddd;
+}
+
+.orders-list ul, .reviews ul, .req-log ul { list-style: none; padding: 0; }
+.orders-list li, .reviews li {
+  background: #fff; padding: 12px 16px; border-radius: 8px; margin-bottom: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.req-log { background: #fff; margin: 0 50px 40px; border-radius: 10px; }
+.req-log ul { max-height: 140px; overflow-y: auto; font-size: 0.8rem; color: #7a6a58; }

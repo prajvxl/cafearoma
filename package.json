@@ -1,0 +1,12 @@
+{
+  "name": "cafe-aroma-rest-api",
+  "version": "1.0.0",
+  "description": "Practical 8 - RESTful API built with Express.js, tested with Postman",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.22.3"
+  }
+}

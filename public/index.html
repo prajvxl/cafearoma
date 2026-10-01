@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cafe Aroma — Ordering Portal</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-text">
+    <p class="eyebrow">SPECIALTY COFFEE &amp; CLOUD KITCHEN</p>
+    <h1 id="cafeName">Cafe Aroma</h1>
+    <p id="cafeStatement" class="statement">Loading...</p>
+    <button id="orderBtn" class="btn-primary">Place an Order</button>
+  </div>
+  <div class="hero-card">
+    <div class="rating-circle"><span id="cafeRating">-</span><small>rating</small></div>
+    <div class="detail-row"><span>Location</span><strong id="cafeLocation">-</strong></div>
+    <div class="detail-row"><span>Status</span><strong>API connected — localhost:3000</strong></div>
+  </div>
+</header>
+
+<section class="locations">
+  <h2>Pickup Locations</h2>
+  <div id="locationCards" class="cards"></div>
+</section>
+
+<section class="order-form">
+  <h2>Place an Order</h2>
+  <form id="orderForm">
+    <input type="text" id="customerName" placeholder="Your name" required>
+    <select id="locationSelect" required></select>
+    <input type="text" id="itemInput" placeholder="Item (e.g. Cappuccino)" required>
+    <input type="text" id="timeInput" placeholder="Pickup time (e.g. 5:30 PM)" required>
+    <button type="submit" class="btn-primary">Confirm Order</button>
+  </form>
+</section>
+
+<section class="orders-list">
+  <h2>Live Orders</h2>
+  <ul id="ordersList"></ul>
+</section>
+
+<section class="reviews">
+  <h2>Customer Reviews</h2>
+  <ul id="reviewsList"></ul>
+</section>
+
+<section class="req-log">
+  <h3>API Requisition Log</h3>
+  <ul id="logList"></ul>
+</section>
+
+<script src="script.js"></script>
+</body>
+</html>
