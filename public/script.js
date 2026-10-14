@@ -1,7 +1,7 @@
 /**
  * Cafe Aroma REST API — Multi-Dashboard System (Admin & User Portals)
+ * Full Authentication Flow with Access Control & Protected Pages
  * College Mini Project (Practical 8)
- * Connects directly to Express.js REST API endpoints
  */
 
 const BASE = '/api';
@@ -11,16 +11,10 @@ const BASE = '/api';
 // ============================================================================
 
 const state = {
-  // Current session user (defaulting to Admin for immediate evaluation, switchable)
-  currentUser: {
-    id: 1,
-    name: 'Admin Manager',
-    email: 'admin@cafearoma.com',
-    role: 'admin', // 'admin' | 'user'
-    phone: '+91 98200 11111',
-  },
-  activeDashboard: 'admin', // 'admin' | 'user'
-  activeTab: 'admin-dashboard',
+  // Authentication: null by default! No protected pages visible before login.
+  currentUser: null,
+  activeDashboard: null, // 'admin' | 'user'
+  activeTab: null,
 
   // API Data
   cafe: null,
@@ -33,7 +27,7 @@ const state = {
   // Shopping Cart (User Portal)
   cart: [],
 
-  // Filters & Search
+  // Search & Filters
   adminMenuFilterCat: 'All',
   adminMenuSearchTerm: '',
   adminOrderFilterStatus: 'All',
@@ -43,7 +37,7 @@ const state = {
   userMenuSearchTerm: '',
 
   // Analytics
-  chartView: 'category', // 'category' | 'status'
+  chartView: 'category',
   chartInstance: null,
 
   // Logger
@@ -124,13 +118,12 @@ function escapeHtml(str) {
 
 async function fetchAllData() {
   try {
-    const [cafe, locations, menu, orders, reviews, customers] = await Promise.all([
+    const [cafe, locations, menu, orders, reviews] = await Promise.all([
       apiCall('GET', `${BASE}/cafe`),
       apiCall('GET', `${BASE}/locations`),
       apiCall('GET', `${BASE}/menu`),
       apiCall('GET', `${BASE}/orders`),
       apiCall('GET', `${BASE}/reviews`),
-      apiCall('GET', `${BASE}/auth/users`),
     ]);
 
     state.cafe = cafe;
@@ -138,14 +131,16 @@ async function fetchAllData() {
     state.menu = menu || [];
     state.orders = orders || [];
     state.reviews = reviews || [];
-    state.customers = customers || [];
 
     renderCafeProfile();
-    renderSidebarNav();
-    updateDashboardUI();
     populateFormDropdowns();
+
+    // If user is admin, also fetch customers
+    if (state.currentUser && state.currentUser.role === 'admin') {
+      refreshCustomers();
+    }
   } catch (err) {
-    showToast('Failed to load initial data: ' + err.message, 'error');
+    console.error('Initial data fetch error:', err);
   }
 }
 
@@ -154,126 +149,245 @@ async function refreshCustomers() {
     state.customers = await apiCall('GET', `${BASE}/auth/users`);
     renderCustomersTable();
   } catch (e) {
-    console.error('Failed to refresh customers', e);
+    console.error('Failed to load customers', e);
   }
 }
 
 // ============================================================================
-// ROLE & DASHBOARD SWITCHING
+// AUTHENTICATION FLOW & ACCESS CONTROL
 // ============================================================================
 
-function setupSessionFromStorage() {
-  const saved = localStorage.getItem('cafe_aroma_user');
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (parsed && parsed.role) {
-        state.currentUser = parsed;
-        state.activeDashboard = parsed.role === 'admin' ? 'admin' : 'user';
-      }
-    } catch (e) {
-      console.warn('Invalid saved session', e);
-    }
-  }
+function showAuthScreen() {
+  document.getElementById('appLayout').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+  state.currentUser = null;
+  state.activeDashboard = null;
+  state.activeTab = null;
+  state.cart = [];
+
+  // Reset forms
+  document.getElementById('portalLoginForm')?.reset();
+  document.getElementById('portalRegisterForm')?.reset();
+  const alertEl = document.getElementById('authAlertMessage');
+  if (alertEl) alertEl.style.display = 'none';
+
+  setAuthTab('login');
 }
 
-function switchDashboard(role) {
-  state.activeDashboard = role;
+function showDashboard(user) {
+  state.currentUser = user;
+  state.activeDashboard = user.role;
 
-  // Sync user role
-  if (role === 'admin') {
-    if (!state.currentUser || state.currentUser.role !== 'admin') {
-      state.currentUser = {
-        id: 1,
-        name: 'Admin Manager',
-        email: 'admin@cafearoma.com',
-        role: 'admin',
-        phone: '+91 98200 11111',
-      };
-    }
-    state.activeTab = 'admin-dashboard';
-  } else {
-    if (!state.currentUser || state.currentUser.role !== 'user') {
-      state.currentUser = {
-        id: 2,
-        name: 'Rahul Sharma',
-        email: 'rahul@gmail.com',
-        role: 'user',
-        phone: '+91 98201 22222',
-      };
-    }
-    state.activeTab = 'user-menu';
-  }
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appLayout').style.display = 'flex';
 
-  localStorage.setItem('cafe_aroma_user', JSON.stringify(state.currentUser));
-
-  renderSidebarNav();
-  updateDashboardUI();
-  switchTab(state.activeTab);
-  showToast(`Switched to ${role === 'admin' ? 'Admin Dashboard' : 'User Dashboard'}`);
-}
-
-function updateDashboardUI() {
-  const isAdm = state.activeDashboard === 'admin';
-
-  // Badges and text
-  const sidebarRoleBadge = document.getElementById('sidebarRoleBadge');
-  const activeDashboardBadge = document.getElementById('activeDashboardBadge');
+  // Update User Identity Elements
+  const isAdm = user.role === 'admin';
   const sidebarUserName = document.getElementById('sidebarUserName');
   const sidebarUserAvatar = document.getElementById('sidebarUserAvatar');
   const sidebarUserRolePill = document.getElementById('sidebarUserRolePill');
-  const btnSwitchAdmin = document.getElementById('btnSwitchAdmin');
-  const btnSwitchUser = document.getElementById('btnSwitchUser');
+  const sidebarRoleBadge = document.getElementById('sidebarRoleBadge');
+  const activeDashboardBadge = document.getElementById('activeDashboardBadge');
+
+  const navUserName = document.getElementById('navUserName');
+  const navUserAvatar = document.getElementById('navUserAvatar');
   const adminNavbarActions = document.getElementById('adminNavbarActions');
   const btnNavbarCart = document.getElementById('btnNavbarCart');
   const btnAdminAddOutlet = document.getElementById('btnAdminAddOutlet');
 
-  if (sidebarRoleBadge) sidebarRoleBadge.textContent = isAdm ? 'Admin Portal' : 'Customer Portal';
-  if (activeDashboardBadge) activeDashboardBadge.textContent = isAdm ? 'Admin Dashboard' : 'User Portal';
-
-  if (sidebarUserName) sidebarUserName.textContent = state.currentUser.name;
+  if (sidebarUserName) sidebarUserName.textContent = user.name;
   if (sidebarUserAvatar) sidebarUserAvatar.textContent = isAdm ? '🛡️' : '☕';
-  if (sidebarUserRolePill) sidebarUserRolePill.textContent = isAdm ? 'Administrator' : 'Verified Customer';
+  if (sidebarUserRolePill) sidebarUserRolePill.textContent = isAdm ? 'Administrator' : 'Customer Account';
+  if (sidebarRoleBadge) sidebarRoleBadge.textContent = isAdm ? 'Admin Portal' : 'Customer Portal';
+  if (activeDashboardBadge) activeDashboardBadge.textContent = isAdm ? 'Admin Dashboard' : 'Customer Portal';
 
-  // Role Switcher buttons active state
-  if (btnSwitchAdmin) btnSwitchAdmin.classList.toggle('active-role', isAdm);
-  if (btnSwitchUser) btnSwitchUser.classList.toggle('active-role', !isAdm);
+  if (navUserName) navUserName.textContent = user.name;
+  if (navUserAvatar) navUserAvatar.textContent = isAdm ? '🛡️' : '☕';
 
-  // Top navbar controls visibility
   if (adminNavbarActions) adminNavbarActions.style.display = isAdm ? 'flex' : 'none';
   if (btnNavbarCart) btnNavbarCart.style.display = isAdm ? 'none' : 'inline-flex';
   if (btnAdminAddOutlet) btnAdminAddOutlet.style.display = isAdm ? 'inline-flex' : 'none';
 
-  // Greeting in user banner
   const userGreetingChip = document.getElementById('userGreetingChip');
-  if (userGreetingChip && state.currentUser) {
-    userGreetingChip.textContent = `Welcome, ${state.currentUser.name}!`;
-  }
+  if (userGreetingChip) userGreetingChip.textContent = `Welcome, ${user.name}!`;
 
-  // Refresh data view
+  // Render navigation & switch to entry tab
+  renderSidebarNav();
+
   if (isAdm) {
+    refreshCustomers();
     renderAdminStats();
     renderRecentOrders();
     renderAdminOrdersTable();
     renderAdminMenuGrid();
-    renderCustomersTable();
-    renderChart();
+    switchTab('admin-dashboard');
   } else {
     renderUserMenuGrid();
     renderUserOrders();
     updateCartBadge();
+    switchTab('user-menu');
   }
 
   renderLocationsGrid();
   renderReviewsGrid();
 }
 
+function logout() {
+  localStorage.removeItem('cafe_aroma_user');
+  showAuthScreen();
+  showToast('You have been signed out successfully.');
+}
+
+// 1-Click Evaluation Sign In (Viva / Project Evaluation)
+async function triggerDemoLogin(role) {
+  const creds =
+    role === 'admin'
+      ? { email: 'admin@cafearoma.com', password: 'admin' }
+      : { email: 'rahul@gmail.com', password: 'user' };
+
+  const alertEl = document.getElementById('authAlertMessage');
+  if (alertEl) alertEl.style.display = 'none';
+
+  try {
+    const res = await apiCall('POST', `${BASE}/auth/login`, creds);
+    localStorage.setItem('cafe_aroma_user', JSON.stringify(res.user));
+    showDashboard(res.user);
+    showToast(`Signed in as ${res.user.name} (${res.user.role})`);
+  } catch (err) {
+    if (alertEl) {
+      alertEl.textContent = 'Demo login failed: ' + err.message;
+      alertEl.style.display = 'block';
+    }
+  }
+}
+
+function setAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('btnTabLogin')?.classList.toggle('active', isLogin);
+  document.getElementById('btnTabRegister')?.classList.toggle('active', !isLogin);
+  document.getElementById('portalLoginForm')?.classList.toggle('active', isLogin);
+  document.getElementById('portalRegisterForm')?.classList.toggle('active', !isLogin);
+
+  const alertEl = document.getElementById('authAlertMessage');
+  if (alertEl) alertEl.style.display = 'none';
+}
+
+// Login Form Submit Handler
+document.getElementById('portalLoginForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('portalLoginEmail').value.trim();
+  const password = document.getElementById('portalLoginPassword').value;
+  const alertEl = document.getElementById('authAlertMessage');
+
+  try {
+    const res = await apiCall('POST', `${BASE}/auth/login`, { email, password });
+    localStorage.setItem('cafe_aroma_user', JSON.stringify(res.user));
+    showDashboard(res.user);
+    showToast(`Welcome, ${res.user.name}!`);
+  } catch (err) {
+    if (alertEl) {
+      alertEl.textContent = err.message;
+      alertEl.style.display = 'block';
+    }
+  }
+});
+
+// Register Form Submit Handler
+document.getElementById('portalRegisterForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('portalRegName').value.trim();
+  const email = document.getElementById('portalRegEmail').value.trim();
+  const phone = document.getElementById('portalRegPhone').value.trim();
+  const password = document.getElementById('portalRegPassword').value;
+  const alertEl = document.getElementById('authAlertMessage');
+
+  try {
+    const res = await apiCall('POST', `${BASE}/auth/register`, { name, email, phone, password });
+    localStorage.setItem('cafe_aroma_user', JSON.stringify(res.user));
+    showDashboard(res.user);
+    showToast(`Account created! Welcome, ${res.user.name}`);
+  } catch (err) {
+    if (alertEl) {
+      alertEl.textContent = err.message;
+      alertEl.style.display = 'block';
+    }
+  }
+});
+
+// ============================================================================
+// ACCESS CONTROL & TAB NAVIGATION
+// ============================================================================
+
+function switchTab(tabId) {
+  // Guard 1: Require authentication for all views
+  if (!state.currentUser) {
+    showAuthScreen();
+    return;
+  }
+
+  // Guard 2: Prevent regular customers from opening admin-only views
+  const isCustomer = state.currentUser.role === 'user';
+  const isAdminOnlyTab = tabId.startsWith('admin-') || tabId === 'apilog';
+
+  if (isCustomer && isAdminOnlyTab) {
+    showToast('Access Denied: Administrator privileges required', 'error');
+    switchTab('user-menu');
+    return;
+  }
+
+  state.activeTab = tabId;
+
+  // Update active sidebar nav button
+  document.querySelectorAll('#sidebarNav .nav-item').forEach((btn) => {
+    if (btn.getAttribute('data-tab') === tabId) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  // Switch visible section
+  document.querySelectorAll('.tab-view').forEach((view) => {
+    view.classList.remove('active');
+  });
+
+  const target = document.getElementById(`view-${tabId}`);
+  if (target) target.classList.add('active');
+
+  // Update header titles
+  const headerTitle = document.getElementById('pageHeaderTitle');
+  const titles = {
+    'admin-dashboard': 'Admin Dashboard Overview',
+    'admin-menu': 'Menu Management (Admin)',
+    'admin-orders': 'Order Dispatch Management',
+    'admin-customers': 'Customer Directory & Analytics',
+    'user-menu': 'Browse Cafe Menu',
+    'user-orders': 'My Orders & Live Pickup Tracking',
+    locations: 'Pickup Outlets & Locations',
+    reviews: 'Customer Reviews & Feedback',
+    apilog: 'REST API Requisition Log',
+  };
+
+  if (headerTitle && titles[tabId]) {
+    headerTitle.textContent = titles[tabId];
+  }
+
+  // Close mobile sidebar if open
+  if (window.innerWidth <= 992) {
+    document.getElementById('sidebar')?.classList.remove('open');
+  }
+
+  // Render chart if entering dashboard
+  if (tabId === 'admin-dashboard') {
+    setTimeout(renderChart, 100);
+  }
+}
+
 function renderSidebarNav() {
   const nav = document.getElementById('sidebarNav');
-  if (!nav) return;
+  if (!nav || !state.currentUser) return;
 
-  const isAdm = state.activeDashboard === 'admin';
-  const pendingOrdersCount = state.orders.filter((o) => (o.status || '').toLowerCase() === 'pending').length;
+  const isAdm = state.currentUser.role === 'admin';
 
   if (isAdm) {
     nav.innerHTML = `
@@ -311,11 +425,12 @@ function renderSidebarNav() {
       </button>
     `;
   } else {
-    // User / Customer navigation
+    // Customer navigation
     const userOrdersCount = state.orders.filter(
       (o) =>
-        o.userId === state.currentUser?.id ||
-        (o.customerName && o.customerName.toLowerCase() === state.currentUser?.name.toLowerCase())
+        o.userId === state.currentUser.id ||
+        (o.userEmail && o.userEmail.toLowerCase() === state.currentUser.email.toLowerCase()) ||
+        (o.customerName && o.customerName.toLowerCase() === state.currentUser.name.toLowerCase())
     ).length;
 
     nav.innerHTML = `
@@ -345,7 +460,6 @@ function renderSidebarNav() {
     `;
   }
 
-  // Attach tab click events
   nav.querySelectorAll('.nav-item[data-tab]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const tab = btn.getAttribute('data-tab');
@@ -354,61 +468,8 @@ function renderSidebarNav() {
   });
 }
 
-function switchTab(tabId) {
-  state.activeTab = tabId;
-
-  // Update sidebar active classes
-  document.querySelectorAll('#sidebarNav .nav-item').forEach((btn) => {
-    if (btn.getAttribute('data-tab') === tabId) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
-
-  // Switch visible section
-  document.querySelectorAll('.tab-view').forEach((view) => {
-    view.classList.remove('active');
-  });
-
-  const target = document.getElementById(`view-${tabId}`);
-  if (target) target.classList.add('active');
-
-  // Update header titles
-  const headerTitle = document.getElementById('pageHeaderTitle');
-  const titles = {
-    'admin-dashboard': 'Dashboard Overview',
-    'admin-menu': 'Menu Management (Admin)',
-    'admin-orders': 'Order Dispatch Management',
-    'admin-customers': 'Customer Directory & Analytics',
-    'user-menu': 'Browse Cafe Menu',
-    'user-orders': 'My Orders & Live Pickup Tracking',
-    locations: 'Pickup Outlets & Locations',
-    reviews: 'Customer Reviews & Feedback',
-    apilog: 'REST API Requisition Log',
-  };
-
-  if (headerTitle && titles[tabId]) {
-    headerTitle.textContent = titles[tabId];
-  }
-
-  // Close mobile sidebar
-  if (window.innerWidth <= 992) {
-    document.getElementById('sidebar')?.classList.remove('open');
-  }
-
-  // Redraw chart if entering admin dashboard
-  if (tabId === 'admin-dashboard') {
-    setTimeout(renderChart, 100);
-  }
-}
-
-// Role switch button listeners
-document.getElementById('btnSwitchAdmin')?.addEventListener('click', () => switchDashboard('admin'));
-document.getElementById('btnSwitchUser')?.addEventListener('click', () => switchDashboard('user'));
-
 // ============================================================================
-// CAFE PROFILE & HEADER
+// CAFE PROFILE & LOCATIONS
 // ============================================================================
 
 function renderCafeProfile() {
@@ -523,7 +584,6 @@ function renderAdminOrdersTable() {
     );
   }
 
-  // Update counts on filter pills
   const countAll = state.orders.length;
   const countPending = state.orders.filter((o) => (o.status || '').toLowerCase() === 'pending').length;
   const countPreparing = state.orders.filter((o) => (o.status || '').toLowerCase() === 'preparing').length;
@@ -583,7 +643,7 @@ async function adminUpdateOrderStatus(id, newStatus) {
     renderRecentOrders();
     renderAdminStats();
     renderChart();
-    showToast(`Order #${id} updated to ${newStatus}`);
+    showToast(`Order #${id} marked as ${newStatus}`);
   } catch (err) {
     showToast('Failed to update status: ' + err.message, 'error');
   }
@@ -606,7 +666,6 @@ async function adminDeleteOrder(id) {
   }
 }
 
-// Order Status Filters for Admin
 document.querySelectorAll('#adminOrderStatusFilters .pill').forEach((btn) => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('#adminOrderStatusFilters .pill').forEach((p) => p.classList.remove('active'));
@@ -709,7 +768,7 @@ document.getElementById('btnChartStatus')?.addEventListener('click', () => {
   renderChart();
 });
 
-// Admin Customers Management
+// Admin Customers Directory
 function renderCustomersTable() {
   const tbody = document.getElementById('customersTableBody');
   if (!tbody) return;
@@ -857,7 +916,7 @@ async function deleteMenuItem(id) {
 }
 
 // ============================================================================
-// USER DASHBOARD FEATURES (EXPLORE MENU, CART & LIVE ORDER TRACKER)
+// USER / CUSTOMER FEATURES (MENU, CART, ORDER TRACKER)
 // ============================================================================
 
 function renderUserMenuGrid() {
@@ -926,7 +985,7 @@ document.getElementById('userMenuSearchInput')?.addEventListener('input', (e) =>
   renderUserMenuGrid();
 });
 
-// Shopping Cart Functions
+// Cart Logic
 function addToCart(itemId) {
   const item = state.menu.find((m) => m.id === itemId);
   if (!item || item.available === false) return;
@@ -1041,7 +1100,6 @@ function renderCartDrawer() {
     )
     .join('');
 
-  // Calculations
   const subtotal = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = Math.round(subtotal * 0.05); // 5% GST
   const grandTotal = subtotal + tax;
@@ -1083,7 +1141,7 @@ async function checkoutCartOrder() {
   try {
     const created = await apiCall('POST', `${BASE}/orders`, payload);
     state.orders.push(created);
-    state.cart = []; // clear cart
+    state.cart = [];
     updateCartBadge();
     closeCartDrawer();
     refreshCustomers();
@@ -1098,17 +1156,17 @@ async function checkoutCartOrder() {
 // User Orders & Visual Live Stepper Tracker
 function renderUserOrders() {
   const container = document.getElementById('userOrdersContainer');
-  if (!container) return;
+  if (!container || !state.currentUser) return;
 
-  const currentUserId = state.currentUser ? state.currentUser.id : 2;
-  const currentEmail = state.currentUser ? state.currentUser.email : '';
-  const currentName = state.currentUser ? state.currentUser.name.toLowerCase() : '';
+  const currentUserId = state.currentUser.id;
+  const currentEmail = (state.currentUser.email || '').toLowerCase();
+  const currentName = (state.currentUser.name || '').toLowerCase();
 
-  // Filter orders for current user
+  // Filter orders strictly for this authenticated customer
   const userOrders = state.orders.filter(
     (o) =>
       o.userId === currentUserId ||
-      (o.userEmail && o.userEmail.toLowerCase() === currentEmail.toLowerCase()) ||
+      (o.userEmail && o.userEmail.toLowerCase() === currentEmail) ||
       (o.customerName && o.customerName.toLowerCase() === currentName)
   );
 
@@ -1124,7 +1182,6 @@ function renderUserOrders() {
     return;
   }
 
-  // Reverse chronological
   const sorted = [...userOrders].reverse();
 
   container.innerHTML = sorted
@@ -1136,13 +1193,11 @@ function renderUserOrders() {
       const isCompleted = status === 'completed';
       const isCancelled = status === 'cancelled';
 
-      // Step active flags
       const step1Class = isCancelled ? '' : isPending ? 'active' : 'completed';
       const step2Class = isCancelled ? '' : isPreparing ? 'active' : isReady || isCompleted ? 'completed' : '';
       const step3Class = isCancelled ? '' : isReady ? 'active' : isCompleted ? 'completed' : '';
       const step4Class = isCancelled ? '' : isCompleted ? 'completed active' : '';
 
-      // Progress bar percentage
       let progressPct = 0;
       if (isPending) progressPct = 12;
       else if (isPreparing) progressPct = 40;
@@ -1174,7 +1229,6 @@ function renderUserOrders() {
           </div>
         `
             : `
-          <!-- Visual Status Stepper -->
           <div class="stepper-container">
             <div class="stepper-track">
               <div class="stepper-track-progress" style="width: ${progressPct}%;"></div>
@@ -1234,87 +1288,6 @@ async function userCancelOrder(id) {
 }
 
 // ============================================================================
-// AUTHENTICATION MODAL & DEMO LOGIN
-// ============================================================================
-
-function handleAuthButtonClick() {
-  openAuthModal();
-}
-
-function openAuthModal(tab = 'login') {
-  switchAuthTab(tab);
-  document.getElementById('authModal')?.classList.add('open');
-}
-
-function closeAuthModal() {
-  document.getElementById('authModal')?.classList.remove('open');
-}
-
-function switchAuthTab(tab) {
-  const isLogin = tab === 'login';
-  document.getElementById('tabBtnLogin')?.classList.toggle('active', isLogin);
-  document.getElementById('tabBtnRegister')?.classList.toggle('active', !isLogin);
-  document.getElementById('loginForm')?.classList.toggle('active', isLogin);
-  document.getElementById('registerForm')?.classList.toggle('active', !isLogin);
-  document.getElementById('authModalTitle').textContent = isLogin ? 'Sign In to Cafe Aroma' : 'Create Customer Account';
-}
-
-async function demoLogin(role) {
-  const creds =
-    role === 'admin'
-      ? { email: 'admin@cafearoma.com', password: 'admin' }
-      : { email: 'rahul@gmail.com', password: 'user' };
-
-  try {
-    const res = await apiCall('POST', `${BASE}/auth/login`, creds);
-    state.currentUser = res.user;
-    localStorage.setItem('cafe_aroma_user', JSON.stringify(res.user));
-    closeAuthModal();
-    switchDashboard(res.user.role);
-    showToast(`Logged in as ${res.user.name} (${res.user.role})`);
-  } catch (err) {
-    showToast('Demo login error: ' + err.message, 'error');
-  }
-}
-
-document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value;
-
-  try {
-    const res = await apiCall('POST', `${BASE}/auth/login`, { email, password });
-    state.currentUser = res.user;
-    localStorage.setItem('cafe_aroma_user', JSON.stringify(res.user));
-    closeAuthModal();
-    switchDashboard(res.user.role);
-    showToast(`Welcome back, ${res.user.name}!`);
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
-});
-
-document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const name = document.getElementById('regName').value.trim();
-  const email = document.getElementById('regEmail').value.trim();
-  const phone = document.getElementById('regPhone').value.trim();
-  const password = document.getElementById('regPassword').value;
-
-  try {
-    const res = await apiCall('POST', `${BASE}/auth/register`, { name, email, phone, password });
-    state.currentUser = res.user;
-    localStorage.setItem('cafe_aroma_user', JSON.stringify(res.user));
-    closeAuthModal();
-    refreshCustomers();
-    switchDashboard('user');
-    showToast(`Account created! Welcome, ${res.user.name}`);
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
-});
-
-// ============================================================================
 // MODALS & SHARED CONTROLS (MENU, LOCATIONS, REVIEWS)
 // ============================================================================
 
@@ -1344,12 +1317,11 @@ function populateFormDropdowns() {
   }
 }
 
-// Menu Modal Controls
 function openMenuModal() {
   const modal = document.getElementById('menuModal');
   const form = document.getElementById('menuItemForm');
   const title = document.getElementById('menuModalTitle');
-  form.reset();
+  form?.reset();
   document.getElementById('menuItemId').value = '';
   document.getElementById('menuItemAvailable').checked = true;
   if (title) title.textContent = 'Add Menu Item';
@@ -1416,7 +1388,6 @@ document.getElementById('menuItemForm')?.addEventListener('submit', async (e) =>
   }
 });
 
-// Admin Order Modal Controls
 function openOrderModal() {
   const modal = document.getElementById('orderModal');
   document.getElementById('newOrderForm')?.reset();
@@ -1652,8 +1623,36 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// DOM Ready
-document.addEventListener('DOMContentLoaded', () => {
-  setupSessionFromStorage();
-  fetchAllData();
+// ============================================================================
+// INITIALIZATION ON DOM READY
+// ============================================================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await fetchAllData();
+
+  // Check saved session in localStorage
+  const saved = localStorage.getItem('cafe_aroma_user');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.id && parsed.email) {
+        // Verify with backend
+        const verification = await apiCall('POST', `${BASE}/auth/verify`, {
+          id: parsed.id,
+          email: parsed.email,
+        });
+
+        if (verification && verification.valid) {
+          showDashboard(verification.user);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Session verification error:', e);
+    }
+    localStorage.removeItem('cafe_aroma_user');
+  }
+
+  // Not logged in -> Show ONLY the Authentication screen!
+  showAuthScreen();
 });

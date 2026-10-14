@@ -21,24 +21,125 @@
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <div class="app-layout">
+  <!-- ===================================================================== -->
+  <!-- 1. FULL-SCREEN AUTHENTICATION PORTAL (SHOWN BEFORE LOGIN)             -->
+  <!-- ===================================================================== -->
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-brand-header">
+        <div class="auth-brand-icon">☕</div>
+        <h2>Cafe Aroma</h2>
+        <p class="auth-brand-tagline">Specialty Coffee &amp; Artisan Bakery</p>
+        <span class="auth-chip">College Mini Project • Practical 8</span>
+      </div>
+
+      <!-- Quick 1-Click Evaluation Login for Viva / Project Demo -->
+      <div class="auth-demo-section">
+        <span class="demo-section-label">⚡ 1-Click Evaluation Sign In:</span>
+        <div class="demo-login-grid">
+          <button type="button" class="btn-demo-pill btn-demo-admin" onclick="triggerDemoLogin('admin')">
+            <span class="demo-icon">🛡️</span>
+            <div class="demo-text">
+              <strong>Admin Portal</strong>
+              <small>admin@cafearoma.com</small>
+            </div>
+            <span class="demo-arrow">→</span>
+          </button>
+          <button type="button" class="btn-demo-pill btn-demo-user" onclick="triggerDemoLogin('user')">
+            <span class="demo-icon">☕</span>
+            <div class="demo-text">
+              <strong>Customer Portal</strong>
+              <small>rahul@gmail.com</small>
+            </div>
+            <span class="demo-arrow">→</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="auth-divider">
+        <span>or sign in with credentials</span>
+      </div>
+
+      <!-- Tab Toggle: Login vs Register -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab-item active" id="btnTabLogin" onclick="setAuthTab('login')">
+          Sign In
+        </button>
+        <button type="button" class="auth-tab-item" id="btnTabRegister" onclick="setAuthTab('register')">
+          Create Account
+        </button>
+      </div>
+
+      <!-- Error / Alert Message -->
+      <div id="authAlertMessage" class="auth-alert" style="display: none;"></div>
+
+      <!-- Sign In Form -->
+      <form id="portalLoginForm" class="portal-auth-form active">
+        <div class="form-group">
+          <label for="portalLoginEmail">Email Address or Username <span class="required">*</span></label>
+          <input type="text" id="portalLoginEmail" placeholder="admin@cafearoma.com or rahul@gmail.com" required autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label for="portalLoginPassword">Password <span class="required">*</span></label>
+          <input type="password" id="portalLoginPassword" placeholder="Enter password (default: admin or user)" required autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn-auth-submit" id="btnSignInSubmit">
+          Sign In to Portal →
+        </button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="portalRegisterForm" class="portal-auth-form">
+        <div class="form-group">
+          <label for="portalRegName">Full Name <span class="required">*</span></label>
+          <input type="text" id="portalRegName" placeholder="e.g. Rahul Sharma" required />
+        </div>
+        <div class="form-group">
+          <label for="portalRegEmail">Email Address <span class="required">*</span></label>
+          <input type="email" id="portalRegEmail" placeholder="e.g. rahul@example.com" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="portalRegPhone">Phone Number</label>
+            <input type="tel" id="portalRegPhone" placeholder="+91 98201 22222" />
+          </div>
+          <div class="form-group">
+            <label for="portalRegPassword">Password <span class="required">*</span></label>
+            <input type="password" id="portalRegPassword" placeholder="Create password" required />
+          </div>
+        </div>
+        <button type="submit" class="btn-auth-submit" id="btnRegisterSubmit">
+          Create Customer Account →
+        </button>
+      </form>
+
+      <div class="auth-card-footer">
+        <small class="text-muted">Protected Access Control • Node.js &amp; Express REST API</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 2. MAIN APPLICATION LAYOUT (HIDDEN UNTIL AUTHENTICATED)               -->
+  <!-- ===================================================================== -->
+  <div class="app-layout" id="appLayout" style="display: none;">
     <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
         <div class="brand-icon">☕</div>
         <div class="brand-info">
           <h2 id="brandCafeName">Cafe Aroma</h2>
-          <span class="brand-badge" id="sidebarRoleBadge">Admin Portal</span>
+          <span class="brand-badge" id="sidebarRoleBadge">Portal</span>
         </div>
         <button class="btn-close-sidebar" id="closeSidebarBtn" aria-label="Close sidebar">✕</button>
       </div>
 
       <!-- Current User Profile Card -->
       <div class="sidebar-user-card" id="sidebarUserCard">
-        <div class="user-avatar" id="sidebarUserAvatar">🛡️</div>
+        <div class="user-avatar" id="sidebarUserAvatar">👤</div>
         <div class="user-details">
-          <strong id="sidebarUserName">Admin Manager</strong>
-          <span class="user-role-pill" id="sidebarUserRolePill">Administrator</span>
+          <strong id="sidebarUserName">User</strong>
+          <span class="user-role-pill" id="sidebarUserRolePill">Role</span>
         </div>
       </div>
 
@@ -47,22 +148,16 @@
         <!-- Rendered dynamically by script.js based on role (Admin vs User) -->
       </nav>
 
-      <!-- Role Switcher & Evaluation Demo Helper -->
-      <div class="role-switcher-box">
-        <span class="switcher-label">Switch Role / Demo:</span>
-        <div class="switcher-btns">
-          <button class="btn-role-switch" id="btnSwitchAdmin" title="Switch to Admin Dashboard">
-            🛡️ Admin
-          </button>
-          <button class="btn-role-switch" id="btnSwitchUser" title="Switch to User Dashboard">
-            ☕ Customer
-          </button>
-        </div>
+      <!-- Sidebar Sign Out Button -->
+      <div class="sidebar-logout-container">
+        <button class="btn-sidebar-logout" onclick="logout()">
+          <span>🚪</span> Sign Out
+        </button>
       </div>
 
       <div class="sidebar-footer">
         <p class="project-tag">Practical 8 • College Mini Project</p>
-        <small class="tech-stack">Express REST • Multi-Dashboard System</small>
+        <small class="tech-stack">Express REST • Protected Multi-Role</small>
       </div>
     </aside>
 
@@ -74,9 +169,9 @@
           <button class="btn-icon mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu">☰</button>
           <div>
             <div class="nav-breadcrumbs">
-              <span class="breadcrumb-badge" id="activeDashboardBadge">Admin Dashboard</span>
+              <span class="breadcrumb-badge" id="activeDashboardBadge">Dashboard</span>
             </div>
-            <h1 class="page-title" id="pageHeaderTitle">Dashboard Overview</h1>
+            <h1 class="page-title" id="pageHeaderTitle">Overview</h1>
           </div>
         </div>
 
@@ -95,7 +190,7 @@
           </button>
 
           <!-- Admin Quick Action Buttons (Visible in Admin mode) -->
-          <div class="admin-quick-actions" id="adminNavbarActions">
+          <div class="admin-quick-actions" id="adminNavbarActions" style="display: none;">
             <button class="btn-secondary" id="btnQuickAddMenu">
               <span>+</span> Add Item
             </button>
@@ -104,10 +199,16 @@
             </button>
           </div>
 
-          <!-- Auth / Profile Button -->
-          <button class="btn-auth" id="btnNavbarAuth" onclick="handleAuthButtonClick()">
-            <span id="btnAuthIcon">👤</span>
-            <span id="btnAuthText">Sign In</span>
+          <!-- User Identity Pill -->
+          <div class="nav-user-pill" id="navUserPill">
+            <span class="nav-user-avatar" id="navUserAvatar">👤</span>
+            <span class="nav-user-name" id="navUserName">User</span>
+          </div>
+
+          <!-- Logout Button -->
+          <button class="btn-logout" id="btnLogoutNav" onclick="logout()" title="Sign out of session">
+            <span class="logout-icon">🚪</span>
+            <span>Sign Out</span>
           </button>
         </div>
       </header>
@@ -116,11 +217,11 @@
       <main class="content-body">
 
         <!-- ================================================================= -->
-        <!-- ADMIN DASHBOARD VIEWS -->
+        <!-- ADMIN DASHBOARD VIEWS                                             -->
         <!-- ================================================================= -->
 
         <!-- 1. ADMIN OVERVIEW -->
-        <section id="view-admin-dashboard" class="tab-view active">
+        <section id="view-admin-dashboard" class="tab-view">
           <!-- Hero Banner with Non-Overflowing Rating Circle -->
           <div class="hero-banner">
             <div class="hero-content">
@@ -339,14 +440,11 @@
             </div>
 
             <div class="category-pills" id="adminOrderStatusFilters">
-              <button class="pill active" data-status="All">All Orders (<span
-                  id="countAdminFilterAll">0</span>)</button>
+              <button class="pill active" data-status="All">All Orders (<span id="countAdminFilterAll">0</span>)</button>
               <button class="pill" data-status="Pending">Pending (<span id="countAdminFilterPending">0</span>)</button>
-              <button class="pill" data-status="Preparing">Preparing (<span
-                  id="countAdminFilterPreparing">0</span>)</button>
+              <button class="pill" data-status="Preparing">Preparing (<span id="countAdminFilterPreparing">0</span>)</button>
               <button class="pill" data-status="Ready">Ready (<span id="countAdminFilterReady">0</span>)</button>
-              <button class="pill" data-status="Completed">Completed (<span
-                  id="countAdminFilterCompleted">0</span>)</button>
+              <button class="pill" data-status="Completed">Completed (<span id="countAdminFilterCompleted">0</span>)</button>
             </div>
 
             <button class="btn-primary" onclick="openOrderModal()">
@@ -418,9 +516,8 @@
           </div>
         </section>
 
-
         <!-- ================================================================= -->
-        <!-- USER / CUSTOMER DASHBOARD VIEWS -->
+        <!-- USER / CUSTOMER DASHBOARD VIEWS                                   -->
         <!-- ================================================================= -->
 
         <!-- 5. USER BROWSE MENU & CART ORDERING -->
@@ -430,8 +527,7 @@
             <div class="user-hero-text">
               <span class="user-greeting-chip" id="userGreetingChip">Welcome, Coffee Lover!</span>
               <h2 id="userHeroHeading">Freshly Roasted Brews &amp; Artisan Treats</h2>
-              <p>Explore our handcrafted menu, customize your order, and pick it up freshly brewed at your nearest
-                branch.</p>
+              <p>Explore our handcrafted menu, customize your order, and pick it up freshly brewed at your nearest branch.</p>
             </div>
             <div class="user-hero-cart-cta">
               <button class="btn-hero-cart" onclick="openCartDrawer()">
@@ -480,9 +576,8 @@
           </div>
         </section>
 
-
         <!-- ================================================================= -->
-        <!-- SHARED VIEWS (LOCATIONS, REVIEWS, API LOG) -->
+        <!-- SHARED VIEWS (LOCATIONS, REVIEWS, API LOG)                        -->
         <!-- ================================================================= -->
 
         <!-- 7. LOCATIONS VIEW -->
@@ -492,7 +587,7 @@
               <h3 class="font-serif">Cafe Aroma Branches</h3>
               <p class="text-muted">Cloud kitchens &amp; dine-in pickup counters</p>
             </div>
-            <button class="btn-primary" id="btnAdminAddOutlet" onclick="openLocationModal()">
+            <button class="btn-primary" id="btnAdminAddOutlet" onclick="openLocationModal()" style="display: none;">
               <span>+</span> Add Outlet
             </button>
           </div>
@@ -519,7 +614,7 @@
           </div>
         </section>
 
-        <!-- 9. REST API LIVE LOG VIEW -->
+        <!-- 9. REST API LIVE LOG VIEW (Admin Only) -->
         <section id="view-apilog" class="tab-view">
           <div class="card log-card">
             <div class="card-header">
@@ -542,89 +637,10 @@
   </div>
 
   <!-- ===================================================================== -->
-  <!-- MODALS & DRAWERS -->
+  <!-- MODALS & DRAWERS                                                      -->
   <!-- ===================================================================== -->
 
-  <!-- 1. AUTHENTICATION (LOGIN / REGISTER) MODAL -->
-  <div class="modal-overlay" id="authModal">
-    <div class="modal-dialog auth-dialog">
-      <div class="modal-header">
-        <h3 class="modal-title font-serif" id="authModalTitle">Sign In to Cafe Aroma</h3>
-        <button class="modal-close" onclick="closeAuthModal()">✕</button>
-      </div>
-
-      <!-- Quick Demo Login Bar for Evaluators / Viva -->
-      <div class="demo-login-banner">
-        <span>⚡ Quick 1-Click Evaluation Login:</span>
-        <div class="demo-buttons">
-          <button type="button" class="btn-demo-badge" onclick="demoLogin('admin')">
-            🛡️ Admin Mode
-          </button>
-          <button type="button" class="btn-demo-badge" onclick="demoLogin('user')">
-            ☕ Customer (Rahul)
-          </button>
-        </div>
-      </div>
-
-      <!-- Auth Tabs: Login vs Register -->
-      <div class="auth-tab-bar">
-        <button type="button" class="auth-tab-btn active" id="tabBtnLogin" onclick="switchAuthTab('login')">
-          Sign In
-        </button>
-        <button type="button" class="auth-tab-btn" id="tabBtnRegister" onclick="switchAuthTab('register')">
-          Create Account
-        </button>
-      </div>
-
-      <!-- Login Form -->
-      <form id="loginForm" class="auth-form-panel active">
-        <div class="modal-body">
-          <div class="form-group">
-            <label for="loginEmail">Email Address or Username</label>
-            <input type="text" id="loginEmail" placeholder="admin@cafearoma.com or rahul@gmail.com" required />
-          </div>
-          <div class="form-group">
-            <label for="loginPassword">Password</label>
-            <input type="password" id="loginPassword" placeholder="Enter password (default: admin or user)" required />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn-secondary" onclick="closeAuthModal()">Cancel</button>
-          <button type="submit" class="btn-primary" id="btnSubmitLogin">Sign In &amp; Continue</button>
-        </div>
-      </form>
-
-      <!-- Register Form -->
-      <form id="registerForm" class="auth-form-panel">
-        <div class="modal-body">
-          <div class="form-group">
-            <label for="regName">Full Name <span class="required">*</span></label>
-            <input type="text" id="regName" placeholder="e.g. Priya Sharma" required />
-          </div>
-          <div class="form-group">
-            <label for="regEmail">Email Address <span class="required">*</span></label>
-            <input type="email" id="regEmail" placeholder="priya@example.com" required />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="regPhone">Contact Phone</label>
-              <input type="tel" id="regPhone" placeholder="+91 98200 12345" />
-            </div>
-            <div class="form-group">
-              <label for="regPassword">Password <span class="required">*</span></label>
-              <input type="password" id="regPassword" placeholder="Create password" required />
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn-secondary" onclick="closeAuthModal()">Cancel</button>
-          <button type="submit" class="btn-primary" id="btnSubmitRegister">Register Account</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 2. SHOPPING CART DRAWER (USER DASHBOARD) -->
+  <!-- SHOPPING CART DRAWER (USER DASHBOARD) -->
   <div class="cart-drawer-overlay" id="cartDrawerOverlay" onclick="closeCartDrawer()"></div>
   <aside class="cart-drawer" id="cartDrawer">
     <div class="cart-drawer-header">
@@ -686,7 +702,7 @@
     </div>
   </aside>
 
-  <!-- 3. ADMIN PLACE ORDER MODAL (Reused from previous) -->
+  <!-- ADMIN PLACE ORDER MODAL -->
   <div class="modal-overlay" id="orderModal">
     <div class="modal-dialog">
       <div class="modal-header">
@@ -742,7 +758,7 @@
     </div>
   </div>
 
-  <!-- 4. ADD/EDIT MENU ITEM MODAL -->
+  <!-- ADD/EDIT MENU ITEM MODAL -->
   <div class="modal-overlay" id="menuModal">
     <div class="modal-dialog">
       <div class="modal-header">
@@ -800,7 +816,7 @@
     </div>
   </div>
 
-  <!-- 5. ADD LOCATION MODAL -->
+  <!-- ADD LOCATION MODAL -->
   <div class="modal-overlay" id="locationModal">
     <div class="modal-dialog">
       <div class="modal-header">
@@ -836,7 +852,7 @@
     </div>
   </div>
 
-  <!-- 6. ADD REVIEW MODAL -->
+  <!-- ADD REVIEW MODAL -->
   <div class="modal-overlay" id="reviewModal">
     <div class="modal-dialog">
       <div class="modal-header">

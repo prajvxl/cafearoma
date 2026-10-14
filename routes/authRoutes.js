@@ -61,6 +61,25 @@ router.post('/register', (req, res) => {
   });
 });
 
+// POST /api/auth/verify
+router.post('/verify', (req, res) => {
+  const { id, email } = req.body;
+  if (!id || !email) {
+    return res.status(400).json({ error: 'User ID and email are required' });
+  }
+
+  const user = users.find(
+    (u) => u.id === Number(id) && u.email.toLowerCase() === email.trim().toLowerCase()
+  );
+
+  if (!user) {
+    return res.status(401).json({ error: 'Session expired or user not found' });
+  }
+
+  const { password: _, ...safeUser } = user;
+  res.status(200).json({ valid: true, user: safeUser });
+});
+
 // GET /api/auth/users (for Admin Customers Management)
 router.get('/users', (req, res) => {
   const customerList = users
