@@ -427,18 +427,19 @@
                 <thead>
                   <tr>
                     <th>Order ID</th>
-                    <th>Customer</th>
-                    <th>Item &amp; Qty</th>
-                    <th>Branch</th>
-                    <th>Amount</th>
+                    <th>Customer &amp; Phone</th>
+                    <th>Items</th>
+                    <th>Delivery / Branch</th>
+                    <th>Amount &amp; Payment</th>
                     <th>Time</th>
                     <th>Status</th>
-                    <th>Quick Update</th>
+                    <th>Decision</th>
+                    <th>Update Status</th>
                   </tr>
                 </thead>
                 <tbody id="recentOrdersTableBody">
                   <tr>
-                    <td colspan="8" class="text-center py-4">Loading recent orders...</td>
+                    <td colspan="9" class="text-center py-4">Loading recent orders...</td>
                   </tr>
                 </tbody>
               </table>
@@ -499,13 +500,13 @@
                 <thead>
                   <tr>
                     <th>Order #</th>
-                    <th>Customer Name</th>
-                    <th>Items Summary</th>
-                    <th>Branch</th>
-                    <th>Amount</th>
-                    <th>Pickup Time</th>
+                    <th>Customer &amp; Phone</th>
+                    <th>Items Breakdown</th>
+                    <th>Address &amp; Outlet</th>
+                    <th>Amount &amp; Payment</th>
+                    <th>Time</th>
                     <th>Status</th>
-                    <th>Update Status</th>
+                    <th>Decision</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -690,33 +691,13 @@
         <h3>Your Order Cart</h3>
         <span class="cart-badge-count" id="cartDrawerCount">0</span>
       </div>
-      <button class="btn-close-cart" onclick="closeCartDrawer()">✕</button>
+      <button class="btn-close-cart" onclick="closeCartDrawer()" aria-label="Close cart">✕</button>
     </div>
 
     <!-- Cart Items List -->
     <div class="cart-drawer-body">
       <div id="cartItemsContainer" class="cart-items-list">
-        <!-- Rendered dynamically -->
-      </div>
-
-      <!-- Checkout Options -->
-      <div class="cart-checkout-options" id="cartCheckoutOptions">
-        <div class="form-group">
-          <label for="cartLocationSelect">Pickup Branch <span class="required">*</span></label>
-          <select id="cartLocationSelect" required>
-            <!-- Populated from /api/locations -->
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="cartPickupTime">Estimated Pickup Time <span class="required">*</span></label>
-          <select id="cartPickupTime" required>
-            <option value="15 minutes">In 15 minutes (Express)</option>
-            <option value="30 minutes">In 30 minutes</option>
-            <option value="45 minutes">In 45 minutes</option>
-            <option value="1 hour">In 1 hour</option>
-          </select>
-        </div>
+        <!-- Rendered dynamically by script.js -->
       </div>
     </div>
 
@@ -737,24 +718,265 @@
         </div>
       </div>
 
-      <button class="btn-checkout-order" id="btnConfirmCartOrder" onclick="checkoutCartOrder()">
-        Confirm &amp; Place Order →
+      <button class="btn-checkout-order" id="btnConfirmCartOrder" onclick="openCheckoutModal()">
+        Proceed to Checkout →
       </button>
     </div>
   </aside>
+
+  <!-- ===================================================================== -->
+  <!-- CUSTOMER CHECKOUT & PAYMENT MODAL                                     -->
+  <!-- ===================================================================== -->
+  <div class="modal-overlay" id="checkoutModal">
+    <div class="modal-dialog checkout-dialog">
+      <div class="modal-header">
+        <div>
+          <span class="checkout-step-tag">Step-by-Step Checkout</span>
+          <h3 class="modal-title font-serif">🛍️ Complete Your Order</h3>
+        </div>
+        <button class="modal-close" onclick="closeCheckoutModal()" aria-label="Close checkout">✕</button>
+      </div>
+
+      <form id="checkoutForm" onsubmit="handleCheckoutSubmit(event)">
+        <div class="modal-body checkout-modal-body">
+          
+          <!-- Section 1: Customer & Delivery Details -->
+          <div class="checkout-section">
+            <h4 class="checkout-section-heading">
+              <span class="section-num">1</span> Delivery &amp; Contact Details
+            </h4>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="checkoutName">Full Name <span class="required">*</span></label>
+                <input type="text" id="checkoutName" placeholder="e.g. Rahul Sharma" required />
+              </div>
+              <div class="form-group">
+                <label for="checkoutPhone">Phone Number <span class="required">*</span></label>
+                <input type="tel" id="checkoutPhone" placeholder="e.g. +91 98201 22222" required pattern="[\+0-9\s\-]{7,16}" title="Please enter a valid phone number" />
+              </div>
+            </div>
+
+            <!-- Order Fulfillment Type -->
+            <div class="form-group">
+              <label>Order Type <span class="required">*</span></label>
+              <div class="fulfillment-toggle-group">
+                <label class="fulfillment-option active" id="optionDeliveryLabel">
+                  <input type="radio" name="orderType" value="Delivery" checked onchange="updateCheckoutOrderType(this.value)" />
+                  <span class="option-icon">🛵</span>
+                  <div class="option-info">
+                    <strong>Doorstep Delivery</strong>
+                    <small>Standard delivery fee ₹30</small>
+                  </div>
+                </label>
+                <label class="fulfillment-option" id="optionPickupLabel">
+                  <input type="radio" name="orderType" value="Pickup" onchange="updateCheckoutOrderType(this.value)" />
+                  <span class="option-icon">🏬</span>
+                  <div class="option-info">
+                    <strong>Express Counter Pickup</strong>
+                    <small>Free pickup at selected branch</small>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="checkoutAddress">Delivery Address / Pickup Location <span class="required">*</span></label>
+              <textarea id="checkoutAddress" rows="2" placeholder="e.g. Flat 402, Building 4, Sector 15, Panvel" required></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="checkoutLocationNote">Location Landmark / Delivery Instructions</label>
+                <input type="text" id="checkoutLocationNote" placeholder="e.g. Opposite Central Park, Call on gate" />
+              </div>
+              <div class="form-group">
+                <label for="checkoutBranchSelect">Cafe Aroma Outlet <span class="required">*</span></label>
+                <select id="checkoutBranchSelect" required>
+                  <!-- Populated dynamically from state.locations -->
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="checkoutTimePreference">Preferred Time <span class="required">*</span></label>
+              <select id="checkoutTimePreference" required>
+                <option value="Express (15-20 mins)">Express (15–20 minutes)</option>
+                <option value="In 30-40 mins">In 30–40 minutes</option>
+                <option value="In 1 hour">In 1 hour</option>
+                <option value="Schedule for later today">Schedule for later today</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Section 2: Payment Method Preferences -->
+          <div class="checkout-section">
+            <h4 class="checkout-section-heading">
+              <span class="section-num">2</span> Payment Method Preferences
+            </h4>
+
+            <div class="payment-methods-grid">
+              <!-- COD Option -->
+              <label class="payment-method-card active" id="payMethodCodCard">
+                <input type="radio" name="checkoutPaymentMethod" value="COD" checked onchange="togglePaymentPreference(this.value)" />
+                <div class="pay-card-content">
+                  <span class="pay-icon">💵</span>
+                  <div>
+                    <strong>Cash on Delivery (COD)</strong>
+                    <p>Pay with cash or UPI QR code upon arrival / pickup.</p>
+                  </div>
+                </div>
+              </label>
+
+              <!-- Online Payment Option -->
+              <label class="payment-method-card" id="payMethodOnlineCard">
+                <input type="radio" name="checkoutPaymentMethod" value="Online" onchange="togglePaymentPreference(this.value)" />
+                <div class="pay-card-content">
+                  <span class="pay-icon">💳</span>
+                  <div>
+                    <strong>Online Payment (UPI, Cards, NetBanking)</strong>
+                    <p>Direct digital payment gateway.</p>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Online Payment Notice Panel -->
+            <div class="online-payment-notice" id="onlinePaymentNotice" style="display: none;">
+              <div class="notice-badge">
+                <span>ℹ️</span> <strong>Payment Integration Notice</strong>
+              </div>
+              <p>
+                Live production payments require merchant accounts &amp; API keys (e.g. Razorpay, Stripe, or Paytm).
+                For this college mini project demonstration, a <strong>verified sandbox simulation mode</strong> is activated.
+              </p>
+              <div class="sandbox-verify-box">
+                <label class="form-check">
+                  <input type="checkbox" id="sandboxPaymentVerified" checked />
+                  <span>Simulate Instant Online Payment Success (Verified Sandbox)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Live Order Summary -->
+          <div class="checkout-section">
+            <h4 class="checkout-section-heading">
+              <span class="section-num">3</span> Order Summary &amp; Bill Breakdown
+            </h4>
+
+            <div class="checkout-summary-box">
+              <div class="checkout-items-preview" id="checkoutItemsPreview">
+                <!-- Dynamically populated -->
+              </div>
+
+              <div class="checkout-bill-lines">
+                <div class="bill-line">
+                  <span>Items Subtotal</span>
+                  <span id="checkoutSubtotalDisplay">₹0</span>
+                </div>
+                <div class="bill-line">
+                  <span>GST &amp; Restaurant Tax (5%)</span>
+                  <span id="checkoutGstDisplay">₹0</span>
+                </div>
+                <div class="bill-line">
+                  <span id="checkoutDeliveryFeeLabel">Delivery Fee</span>
+                  <span id="checkoutDeliveryFeeDisplay">₹30</span>
+                </div>
+                <div class="bill-line grand-total-line">
+                  <strong>Total Payable</strong>
+                  <strong id="checkoutGrandTotalDisplay">₹0</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeCheckoutModal()">
+            ← Back to Cart
+          </button>
+          <button type="submit" class="btn-primary" id="btnPlaceFinalOrder">
+            <span>✓</span> Confirm &amp; Place Order
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- ORDER SUCCESS CONFIRMATION MODAL                                      -->
+  <!-- ===================================================================== -->
+  <div class="modal-overlay" id="orderSuccessModal">
+    <div class="modal-dialog success-dialog">
+      <div class="success-header">
+        <div class="success-icon-badge">🎉</div>
+        <h3 class="font-serif">Order Confirmed Successfully!</h3>
+        <p class="text-muted">Your order has been submitted and sent to our cafe kitchen.</p>
+      </div>
+
+      <div class="modal-body success-body">
+        <div class="order-confirmed-card">
+          <div class="confirmed-id-row">
+            <span>Order Reference:</span>
+            <strong class="confirmed-order-id" id="successOrderId">#0000</strong>
+          </div>
+          <div class="confirmed-status-row">
+            <span>Kitchen Status:</span>
+            <span class="badge-status badge-pending" id="successOrderStatus">Pending Kitchen Acceptance</span>
+          </div>
+        </div>
+
+        <div class="success-details-list">
+          <div class="success-detail-item">
+            <span>📦 <strong>Ordered Items:</strong></span>
+            <p id="successOrderItems">-</p>
+          </div>
+          <div class="success-detail-item">
+            <span>📍 <strong>Delivery / Pickup Location:</strong></span>
+            <p id="successOrderAddress">-</p>
+          </div>
+          <div class="success-detail-item">
+            <span>💳 <strong>Payment Method &amp; Status:</strong></span>
+            <p id="successPaymentSummary">-</p>
+          </div>
+          <div class="success-detail-item">
+            <span>💰 <strong>Total Amount Paid / Due:</strong></span>
+            <p><strong class="text-accent" id="successOrderAmount">₹0</strong></p>
+          </div>
+        </div>
+
+        <div class="success-action-buttons">
+          <button class="btn-primary btn-block" onclick="viewOrderLiveTracking()">
+            <span>📦</span> Track Order Status Live →
+          </button>
+          <button class="btn-secondary btn-block" onclick="closeOrderSuccessModal()">
+            ☕ Continue Browsing Menu
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ADMIN PLACE ORDER MODAL -->
   <div class="modal-overlay" id="orderModal">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 class="modal-title font-serif">☕ Place a New Order</h3>
+        <h3 class="modal-title font-serif">☕ Place a New Order (Admin Dispatch)</h3>
         <button class="modal-close" onclick="closeOrderModal()">✕</button>
       </div>
       <form id="newOrderForm">
         <div class="modal-body">
-          <div class="form-group">
-            <label for="orderCustomerName">Customer Name <span class="required">*</span></label>
-            <input type="text" id="orderCustomerName" placeholder="e.g. Rahul Sharma" required />
+          <div class="form-row">
+            <div class="form-group">
+              <label for="orderCustomerName">Customer Name <span class="required">*</span></label>
+              <input type="text" id="orderCustomerName" placeholder="e.g. Rahul Sharma" required />
+            </div>
+            <div class="form-group">
+              <label for="orderCustomerPhone">Phone Number <span class="required">*</span></label>
+              <input type="tel" id="orderCustomerPhone" placeholder="e.g. +91 98201 22222" value="+91 98201 00000" required />
+            </div>
           </div>
 
           <div class="form-row">
@@ -771,6 +993,11 @@
             </div>
           </div>
 
+          <div class="form-group">
+            <label for="orderDeliveryAddress">Delivery Address / Pickup Point <span class="required">*</span></label>
+            <input type="text" id="orderDeliveryAddress" placeholder="e.g. Counter Pickup (Panvel Branch)" value="Counter Pickup" required />
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label for="orderLocationSelect">Pickup Outlet <span class="required">*</span></label>
@@ -780,9 +1007,17 @@
             </div>
 
             <div class="form-group">
-              <label for="orderTimeInput">Pickup Time <span class="required">*</span></label>
-              <input type="text" id="orderTimeInput" placeholder="e.g. 15 mins / 4:30 PM" required />
+              <label for="orderPaymentMethod">Payment Method <span class="required">*</span></label>
+              <select id="orderPaymentMethod" required>
+                <option value="COD">Cash on Delivery / Pickup (COD)</option>
+                <option value="Online">Online Payment</option>
+              </select>
             </div>
+          </div>
+
+          <div class="form-group">
+            <label for="orderTimeInput">Pickup / Delivery Time <span class="required">*</span></label>
+            <input type="text" id="orderTimeInput" placeholder="e.g. 15 mins / Express" value="Express (15 mins)" required />
           </div>
 
           <div class="order-pricing-summary">

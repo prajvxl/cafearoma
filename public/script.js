@@ -531,7 +531,7 @@ function renderRecentOrders() {
   if (!tbody) return;
 
   if (state.orders.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">No orders placed yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted">No orders placed yet.</td></tr>`;
     return;
   }
 
@@ -540,15 +540,43 @@ function renderRecentOrders() {
   tbody.innerHTML = recent
     .map((o) => {
       const statusClass = `badge-${(o.status || 'pending').toLowerCase()}`;
+      const isPending = (o.status || 'pending').toLowerCase() === 'pending';
+      const isRejected = (o.status || '').toLowerCase() === 'cancelled';
+      const isOnline = (o.paymentMethod || '').toLowerCase() === 'online';
+
+      const decisionCell = isPending
+        ? `<div class="decision-btns-inline">
+            <button class="btn-decision-accept" onclick="adminAcceptOrder(${o.id})" title="Accept order">✓ Accept</button>
+            <button class="btn-decision-reject" onclick="adminRejectOrder(${o.id})" title="Reject order">✕ Reject</button>
+           </div>`
+        : isRejected
+        ? `<span class="decision-badge badge-rejected">✕ Rejected</span>`
+        : `<span class="decision-badge badge-accepted">✓ Accepted</span>`;
+
       return `
       <tr>
         <td><span class="order-id">#${o.id}</span></td>
-        <td class="customer-cell">${escapeHtml(o.customerName)}</td>
+        <td class="customer-cell">
+          <strong>${escapeHtml(o.customerName)}</strong>
+          <div class="table-subtext">📞 ${escapeHtml(o.phone || '+91 98201 22222')}</div>
+        </td>
         <td><strong>${escapeHtml(o.item)}</strong></td>
-        <td>${escapeHtml(getLocationName(o.locationId))}</td>
-        <td class="amount-cell">₹${Number(o.amount || 0).toLocaleString()}</td>
+        <td>
+          <div title="${escapeHtml(o.deliveryAddress || '')}">
+            <span>📍 ${escapeHtml(getLocationName(o.locationId))}</span>
+            <div class="table-subtext">${escapeHtml(o.orderType || 'Pickup')}: ${escapeHtml((o.deliveryAddress || '').slice(0, 22))}${o.deliveryAddress && o.deliveryAddress.length > 22 ? '...' : ''}</div>
+          </div>
+        </td>
+        <td class="amount-cell">
+          <strong>₹${Number(o.amount || 0).toLocaleString()}</strong>
+          <div class="table-subtext">
+            <span class="pay-chip ${isOnline ? 'pay-chip-online' : 'pay-chip-cod'}">${escapeHtml(o.paymentMethod || 'COD')}</span>
+            <small>(${escapeHtml(o.paymentStatus || 'Pending')})</small>
+          </div>
+        </td>
         <td>${escapeHtml(o.time || '-')}</td>
         <td><span class="badge-status ${statusClass}">${escapeHtml(o.status || 'Pending')}</span></td>
+        <td>${decisionCell}</td>
         <td>
           <select class="status-select" onchange="adminUpdateOrderStatus(${o.id}, this.value)">
             <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
@@ -579,7 +607,9 @@ function renderAdminOrdersTable() {
     items = items.filter(
       (o) =>
         o.customerName.toLowerCase().includes(q) ||
+        (o.phone && o.phone.toLowerCase().includes(q)) ||
         (o.item && o.item.toLowerCase().includes(q)) ||
+        (o.deliveryAddress && o.deliveryAddress.toLowerCase().includes(q)) ||
         String(o.id).includes(q)
     );
   }
@@ -606,31 +636,96 @@ function renderAdminOrdersTable() {
   tbody.innerHTML = sorted
     .map((o) => {
       const statusClass = `badge-${(o.status || 'pending').toLowerCase()}`;
+      const isPending = (o.status || 'pending').toLowerCase() === 'pending';
+      const isRejected = (o.status || '').toLowerCase() === 'cancelled';
+      const isOnline = (o.paymentMethod || '').toLowerCase() === 'online';
+
+      const decisionCell = isPending
+        ? `<div class="decision-btns-inline">
+            <button class="btn-decision-accept" onclick="adminAcceptOrder(${o.id})" title="Accept & Start Preparing">✓ Accept</button>
+            <button class="btn-decision-reject" onclick="adminRejectOrder(${o.id})" title="Reject & Cancel">✕ Reject</button>
+           </div>`
+        : isRejected
+        ? `<span class="decision-badge badge-rejected">✕ Rejected</span>`
+        : `<span class="decision-badge badge-accepted">✓ Accepted</span>`;
+
       return `
       <tr>
         <td><span class="order-id">#${o.id}</span></td>
-        <td class="customer-cell">${escapeHtml(o.customerName)}</td>
-        <td><strong>${escapeHtml(o.item)}</strong></td>
-        <td>${escapeHtml(getLocationName(o.locationId))}</td>
-        <td class="amount-cell">₹${Number(o.amount || 0).toLocaleString()}</td>
-        <td>${escapeHtml(o.time || '-')}</td>
-        <td><span class="badge-status ${statusClass}">${escapeHtml(o.status || 'Pending')}</span></td>
-        <td>
-          <select class="status-select" onchange="adminUpdateOrderStatus(${o.id}, this.value)">
-            <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
-            <option value="Preparing" ${o.status === 'Preparing' ? 'selected' : ''}>Preparing</option>
-            <option value="Ready" ${o.status === 'Ready' ? 'selected' : ''}>Ready</option>
-            <option value="Completed" ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
-            <option value="Cancelled" ${o.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
-          </select>
+        <td class="customer-cell">
+          <strong>${escapeHtml(o.customerName)}</strong>
+          <div class="table-subtext">📞 ${escapeHtml(o.phone || '+91 98201 22222')}</div>
         </td>
         <td>
-          <button class="btn-table-del" onclick="adminDeleteOrder(${o.id})">✕ Delete</button>
+          <strong>${escapeHtml(o.item)}</strong>
+          ${o.locationNote ? `<div class="table-subtext"><em>Note: ${escapeHtml(o.locationNote)}</em></div>` : ''}
+        </td>
+        <td>
+          <div title="${escapeHtml(o.deliveryAddress || '')}">
+            <span>📍 ${escapeHtml(getLocationName(o.locationId))}</span>
+            <div class="table-subtext">${escapeHtml(o.orderType || 'Pickup')}: ${escapeHtml((o.deliveryAddress || '').slice(0, 24))}${o.deliveryAddress && o.deliveryAddress.length > 24 ? '...' : ''}</div>
+          </div>
+        </td>
+        <td class="amount-cell">
+          <strong>₹${Number(o.amount || 0).toLocaleString()}</strong>
+          <div class="table-subtext">
+            <span class="pay-chip ${isOnline ? 'pay-chip-online' : 'pay-chip-cod'}">${escapeHtml(o.paymentMethod || 'COD')}</span>
+            <small>(${escapeHtml(o.paymentStatus || 'Pending')})</small>
+          </div>
+        </td>
+        <td>${escapeHtml(o.time || '-')}</td>
+        <td><span class="badge-status ${statusClass}">${escapeHtml(o.status || 'Pending')}</span></td>
+        <td>${decisionCell}</td>
+        <td>
+          <div class="table-action-group">
+            <select class="status-select" onchange="adminUpdateOrderStatus(${o.id}, this.value)">
+              <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
+              <option value="Preparing" ${o.status === 'Preparing' ? 'selected' : ''}>Preparing</option>
+              <option value="Ready" ${o.status === 'Ready' ? 'selected' : ''}>Ready</option>
+              <option value="Completed" ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
+              <option value="Cancelled" ${o.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+            </select>
+            <button class="btn-table-del" onclick="adminDeleteOrder(${o.id})" title="Delete order record">✕</button>
+          </div>
         </td>
       </tr>
     `;
     })
     .join('');
+}
+
+async function adminAcceptOrder(id) {
+  try {
+    const updated = await apiCall('PUT', `${BASE}/orders/${id}`, { status: 'Preparing' });
+    const order = state.orders.find((o) => o.id === id);
+    if (order) order.status = 'Preparing';
+
+    renderAdminOrdersTable();
+    renderRecentOrders();
+    renderAdminStats();
+    renderChart();
+    showToast(`Order #${id} accepted! Status moved to Preparing.`);
+  } catch (err) {
+    showToast('Failed to accept order: ' + err.message, 'error');
+  }
+}
+
+async function adminRejectOrder(id) {
+  if (!confirm(`Are you sure you want to reject Order #${id}?`)) return;
+
+  try {
+    const updated = await apiCall('PUT', `${BASE}/orders/${id}`, { status: 'Cancelled' });
+    const order = state.orders.find((o) => o.id === id);
+    if (order) order.status = 'Cancelled';
+
+    renderAdminOrdersTable();
+    renderRecentOrders();
+    renderAdminStats();
+    renderChart();
+    showToast(`Order #${id} rejected and marked as Cancelled.`, 'error');
+  } catch (err) {
+    showToast('Failed to reject order: ' + err.message, 'error');
+  }
 }
 
 async function adminUpdateOrderStatus(id, newStatus) {
@@ -643,7 +738,7 @@ async function adminUpdateOrderStatus(id, newStatus) {
     renderRecentOrders();
     renderAdminStats();
     renderChart();
-    showToast(`Order #${id} marked as ${newStatus}`);
+    showToast(`Order #${id} status updated to "${newStatus}"`);
   } catch (err) {
     showToast('Failed to update status: ' + err.message, 'error');
   }
@@ -1057,7 +1152,6 @@ function renderCartDrawer() {
   const taxEl = document.getElementById('cartTax');
   const grandTotalEl = document.getElementById('cartGrandTotal');
   const btnConfirm = document.getElementById('btnConfirmCartOrder');
-  const optionsEl = document.getElementById('cartCheckoutOptions');
 
   if (!container) return;
 
@@ -1067,9 +1161,11 @@ function renderCartDrawer() {
         <span class="empty-icon">🛒</span>
         <h4>Your Cart is Empty</h4>
         <p>Explore our craft coffees and bakeries to add treats to your cart.</p>
+        <button class="btn-primary" style="margin-top: 14px;" onclick="closeCartDrawer(); switchTab('user-menu');">
+          Browse Menu
+        </button>
       </div>
     `;
-    if (optionsEl) optionsEl.style.display = 'none';
     if (subtotalEl) subtotalEl.textContent = '₹0';
     if (taxEl) taxEl.textContent = '₹0';
     if (grandTotalEl) grandTotalEl.textContent = '₹0';
@@ -1077,7 +1173,6 @@ function renderCartDrawer() {
     return;
   }
 
-  if (optionsEl) optionsEl.style.display = 'flex';
   if (btnConfirm) btnConfirm.disabled = false;
 
   container.innerHTML = state.cart
@@ -1109,51 +1204,270 @@ function renderCartDrawer() {
   if (grandTotalEl) grandTotalEl.textContent = `₹${grandTotal.toLocaleString()}`;
 }
 
-async function checkoutCartOrder() {
+// ============================================================================
+// CHECKOUT FLOW & PAYMENT PREFERENCE SYSTEM
+// ============================================================================
+
+const checkoutState = {
+  orderType: 'Delivery', // 'Delivery' | 'Pickup'
+  paymentMethod: 'COD',  // 'COD' | 'Online'
+  deliveryFee: 30,
+};
+
+function openCheckoutModal() {
+  if (state.cart.length === 0) {
+    showToast('Your cart is empty. Please add items to proceed.', 'error');
+    return;
+  }
+
+  // Pre-fill user information if available
+  const nameInput = document.getElementById('checkoutName');
+  const phoneInput = document.getElementById('checkoutPhone');
+  const addressInput = document.getElementById('checkoutAddress');
+  const branchSelect = document.getElementById('checkoutBranchSelect');
+
+  if (nameInput && state.currentUser) {
+    nameInput.value = state.currentUser.name || '';
+  }
+  if (phoneInput && state.currentUser) {
+    phoneInput.value = state.currentUser.phone || '+91 98201 22222';
+  }
+  if (addressInput && !addressInput.value) {
+    addressInput.value = 'Flat 402, Seawood Palms, Sector 15, Panvel';
+  }
+
+  // Populate branch outlets dropdown
+  if (branchSelect) {
+    branchSelect.innerHTML = state.locations
+      .map((l) => `<option value="${l.id}">${escapeHtml(l.name)} (${escapeHtml(l.address)})</option>`)
+      .join('');
+  }
+
+  // Set default fulfillment and payment choices
+  updateCheckoutOrderType('Delivery');
+  togglePaymentPreference('COD');
+
+  // Render live bill summary
+  renderCheckoutSummary();
+
+  // Close cart drawer and open modal
+  closeCartDrawer();
+  document.getElementById('checkoutModal')?.classList.add('open');
+}
+
+function closeCheckoutModal() {
+  document.getElementById('checkoutModal')?.classList.remove('open');
+}
+
+function updateCheckoutOrderType(type) {
+  checkoutState.orderType = type;
+  checkoutState.deliveryFee = type === 'Delivery' ? 30 : 0;
+
+  const optDelivery = document.getElementById('optionDeliveryLabel');
+  const optPickup = document.getElementById('optionPickupLabel');
+  const addressLabel = document.querySelector('label[for="checkoutAddress"]');
+  const addressInput = document.getElementById('checkoutAddress');
+
+  if (type === 'Delivery') {
+    optDelivery?.classList.add('active');
+    optPickup?.classList.remove('active');
+    if (addressLabel) addressLabel.innerHTML = 'Delivery Address (Street, Building, Flat) <span class="required">*</span>';
+    if (addressInput && addressInput.value.includes('Counter Pickup')) {
+      addressInput.value = 'Flat 402, Seawood Palms, Sector 15, Panvel';
+    }
+  } else {
+    optPickup?.classList.add('active');
+    optDelivery?.classList.remove('active');
+    if (addressLabel) addressLabel.innerHTML = 'Pickup Branch Counter <span class="required">*</span>';
+    if (addressInput) addressInput.value = 'In-Store Counter Pickup at Selected Outlet';
+  }
+
+  renderCheckoutSummary();
+}
+
+function togglePaymentPreference(method) {
+  checkoutState.paymentMethod = method;
+
+  const codCard = document.getElementById('payMethodCodCard');
+  const onlineCard = document.getElementById('payMethodOnlineCard');
+  const notice = document.getElementById('onlinePaymentNotice');
+
+  if (method === 'COD') {
+    codCard?.classList.add('active');
+    onlineCard?.classList.remove('active');
+    if (notice) notice.style.display = 'none';
+  } else {
+    onlineCard?.classList.add('active');
+    codCard?.classList.remove('active');
+    if (notice) notice.style.display = 'block';
+  }
+
+  renderCheckoutSummary();
+}
+
+function renderCheckoutSummary() {
+  const preview = document.getElementById('checkoutItemsPreview');
+  const subtotalEl = document.getElementById('checkoutSubtotalDisplay');
+  const gstEl = document.getElementById('checkoutGstDisplay');
+  const feeLabelEl = document.getElementById('checkoutDeliveryFeeLabel');
+  const feeDisplayEl = document.getElementById('checkoutDeliveryFeeDisplay');
+  const grandTotalEl = document.getElementById('checkoutGrandTotalDisplay');
+
+  if (!preview) return;
+
+  const subtotal = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const gst = Math.round(subtotal * 0.05);
+  const deliveryFee = checkoutState.deliveryFee;
+  const grandTotal = subtotal + gst + deliveryFee;
+
+  preview.innerHTML = state.cart
+    .map(
+      (item) => `
+    <div class="summary-item-line">
+      <div class="summary-item-name">
+        <strong>${escapeHtml(item.name)}</strong>
+        <span class="text-muted">× ${item.quantity}</span>
+      </div>
+      <div class="summary-item-price">₹${(item.price * item.quantity).toLocaleString()}</div>
+    </div>
+  `
+    )
+    .join('');
+
+  if (subtotalEl) subtotalEl.textContent = `₹${subtotal.toLocaleString()}`;
+  if (gstEl) gstEl.textContent = `₹${gst.toLocaleString()}`;
+  if (feeLabelEl) feeLabelEl.textContent = checkoutState.orderType === 'Delivery' ? 'Delivery Fee' : 'Counter Pickup';
+  if (feeDisplayEl) feeDisplayEl.textContent = checkoutState.orderType === 'Delivery' ? `₹${deliveryFee}` : 'FREE';
+  if (grandTotalEl) grandTotalEl.textContent = `₹${grandTotal.toLocaleString()}`;
+}
+
+async function handleCheckoutSubmit(e) {
+  e.preventDefault();
+
   if (state.cart.length === 0) {
     showToast('Your cart is empty', 'error');
     return;
   }
 
-  const locationId = Number(document.getElementById('cartLocationSelect').value) || 1;
-  const time = document.getElementById('cartPickupTime').value || '15 minutes';
+  const customerName = document.getElementById('checkoutName').value.trim();
+  const phone = document.getElementById('checkoutPhone').value.trim();
+  const deliveryAddress = document.getElementById('checkoutAddress').value.trim();
+  const locationNote = document.getElementById('checkoutLocationNote').value.trim();
+  const locationId = Number(document.getElementById('checkoutBranchSelect').value) || 1;
+  const time = document.getElementById('checkoutTimePreference').value;
+  const isOnlineVerified = document.getElementById('sandboxPaymentVerified')?.checked ?? true;
 
+  if (!customerName) {
+    showToast('Please enter your full name', 'error');
+    return;
+  }
+  if (!phone || !/^\+?[\d\s\-()]{7,16}$/.test(phone)) {
+    showToast('Please enter a valid phone number (at least 7 digits)', 'error');
+    return;
+  }
+  if (!deliveryAddress) {
+    showToast('Please provide a delivery address or pickup location', 'error');
+    return;
+  }
+
+  // Calculate pricing
   const subtotal = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = Math.round(subtotal * 0.05);
-  const grandTotal = subtotal + tax;
+  const gst = Math.round(subtotal * 0.05);
+  const deliveryFee = checkoutState.deliveryFee;
+  const grandTotal = subtotal + gst + deliveryFee;
 
-  const summaryItem = state.cart.map((c) => `${c.name} × ${c.quantity}`).join(', ');
-  const totalQty = state.cart.reduce((sum, item) => sum + item.quantity, 0);
+  // Ask for final confirmation
+  const confirmMsg = `Confirm placing this order?\n\n• Customer: ${customerName}\n• Total Amount: ₹${grandTotal.toLocaleString()}\n• Payment Method: ${checkoutState.paymentMethod === 'Online' ? 'Online Payment (Sandbox)' : 'Cash on Delivery (COD)'}\n• Destination: ${deliveryAddress}`;
+  if (!confirm(confirmMsg)) {
+    return;
+  }
 
   const payload = {
-    customerName: state.currentUser ? state.currentUser.name : 'Customer',
+    customerName,
+    phone,
+    deliveryAddress,
+    locationNote,
+    locationId,
+    orderType: checkoutState.orderType,
+    items: state.cart.map((c) => ({ id: c.id, name: c.name, price: c.price, quantity: c.quantity })),
+    paymentMethod: checkoutState.paymentMethod,
+    onlinePaymentVerified: checkoutState.paymentMethod === 'Online' ? isOnlineVerified : false,
+    time: `${checkoutState.orderType}: ${time}`,
     userId: state.currentUser ? state.currentUser.id : 2,
     userEmail: state.currentUser ? state.currentUser.email : 'customer@cafearoma.com',
-    locationId,
-    item: summaryItem,
-    items: state.cart.map((c) => ({ id: c.id, name: c.name, price: c.price, quantity: c.quantity })),
-    quantity: totalQty,
-    amount: grandTotal,
-    time: `Pickup in ${time}`,
-    status: 'Pending',
   };
+
+  const btnSubmit = document.getElementById('btnPlaceFinalOrder');
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<span>⏳</span> Submitting Order...';
+  }
 
   try {
     const created = await apiCall('POST', `${BASE}/orders`, payload);
+
+    // Save locally
     state.orders.push(created);
     state.cart = [];
     updateCartBadge();
-    closeCartDrawer();
+    closeCheckoutModal();
+
+    // Show Celebration Confirmation Modal
+    showOrderSuccessModal(created);
+
+    // Update background views
+    renderAdminOrdersTable();
+    renderRecentOrders();
+    renderAdminStats();
+    renderUserOrders();
+    renderSidebarNav();
     refreshCustomers();
 
-    showToast(`Order #${created.id} confirmed! Estimated pickup in ${time}`);
-    switchTab('user-orders');
+    showToast(`Order #${created.id} placed successfully!`);
   } catch (err) {
     showToast('Failed to place order: ' + err.message, 'error');
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = '<span>✓</span> Confirm &amp; Place Order';
+    }
   }
 }
 
-// User Orders & Visual Live Stepper Tracker
+function showOrderSuccessModal(order) {
+  const modal = document.getElementById('orderSuccessModal');
+  if (!modal) return;
+
+  const idEl = document.getElementById('successOrderId');
+  const statusEl = document.getElementById('successOrderStatus');
+  const itemsEl = document.getElementById('successOrderItems');
+  const addrEl = document.getElementById('successOrderAddress');
+  const payEl = document.getElementById('successPaymentSummary');
+  const amountEl = document.getElementById('successOrderAmount');
+
+  if (idEl) idEl.textContent = `#${order.id}`;
+  if (statusEl) statusEl.textContent = `${order.status || 'Pending'} — Waiting for Kitchen Acceptance`;
+  if (itemsEl) itemsEl.textContent = order.item || '-';
+  if (addrEl) addrEl.textContent = `${order.deliveryAddress} (${order.orderType || 'Delivery'})`;
+  if (payEl) payEl.textContent = `${order.paymentMethod || 'COD'} • ${order.paymentStatus || 'Pending'}`;
+  if (amountEl) amountEl.textContent = `₹${Number(order.amount || 0).toLocaleString()} (incl. GST & delivery)`;
+
+  modal.classList.add('open');
+}
+
+function closeOrderSuccessModal() {
+  document.getElementById('orderSuccessModal')?.classList.remove('open');
+}
+
+function viewOrderLiveTracking() {
+  closeOrderSuccessModal();
+  switchTab('user-orders');
+}
+
+// ============================================================================
+// USER DASHBOARD: MY ORDERS & LIVE STEPPER TRACKER
+// ============================================================================
+
 function renderUserOrders() {
   const container = document.getElementById('userOrdersContainer');
   if (!container || !state.currentUser) return;
@@ -1175,7 +1489,7 @@ function renderUserOrders() {
       <div class="card text-center py-4">
         <span style="font-size: 3rem; display: block; margin-bottom: 10px;">☕</span>
         <h3>No Orders Placed Yet</h3>
-        <p class="text-muted" style="margin-bottom: 18px;">You haven't placed any pickup orders yet. Browse our specialty menu to order fresh coffee!</p>
+        <p class="text-muted" style="margin-bottom: 18px;">You haven't placed any pickup or delivery orders yet. Explore our specialty menu to order fresh coffee!</p>
         <button class="btn-primary" onclick="switchTab('user-menu')">Browse Menu &amp; Order</button>
       </div>
     `;
@@ -1205,18 +1519,28 @@ function renderUserOrders() {
       else if (isCompleted) progressPct = 100;
 
       const outletName = getLocationName(o.locationId);
+      const isOnline = (o.paymentMethod || '').toLowerCase() === 'online';
 
       return `
       <div class="order-tracker-card" id="user-order-${o.id}">
         <div class="order-card-top">
           <div class="order-card-meta">
             <h4>Order #${o.id}</h4>
-            <p>📍 <strong>${escapeHtml(outletName)}</strong> • Target: ${escapeHtml(o.time || '15 mins')}</p>
+            <p>
+              📍 <strong>${escapeHtml(o.orderType || 'Pickup')}:</strong> ${escapeHtml(o.deliveryAddress || outletName)}
+              ${o.phone ? ` • 📞 ${escapeHtml(o.phone)}` : ''}
+            </p>
+            <p class="order-outlet-line">Outlet: <strong>${escapeHtml(outletName)}</strong> • Preferred Time: <strong>${escapeHtml(o.time || 'Express')}</strong></p>
           </div>
           <div class="order-card-price">
             <span class="order-total-val">₹${Number(o.amount || 0).toLocaleString()}</span>
             <div style="margin-top: 4px;">
               <span class="badge-status badge-${status}">${escapeHtml(o.status || 'Pending')}</span>
+            </div>
+            <div style="margin-top: 6px;">
+              <span class="pay-chip ${isOnline ? 'pay-chip-online' : 'pay-chip-cod'}">
+                💳 ${escapeHtml(o.paymentMethod || 'COD')} (${escapeHtml(o.paymentStatus || 'Pending')})
+              </span>
             </div>
           </div>
         </div>
@@ -1224,8 +1548,8 @@ function renderUserOrders() {
         ${
           isCancelled
             ? `
-          <div style="background: #FEE2E2; color: #B91C1C; padding: 12px; border-radius: 8px; font-weight: 600; text-align: center; margin: 15px 0;">
-            ✕ This order has been cancelled.
+          <div class="order-cancelled-alert">
+            ✕ This order was cancelled / rejected by kitchen dispatch.
           </div>
         `
             : `
@@ -1236,22 +1560,26 @@ function renderUserOrders() {
 
             <div class="step-node ${step1Class}">
               <div class="step-circle">📝</div>
-              <span class="step-label">Received</span>
+              <span class="step-label">1. Order Placed</span>
+              <small class="step-sublabel">Pending Review</small>
             </div>
 
             <div class="step-node ${step2Class}">
               <div class="step-circle">☕</div>
-              <span class="step-label">Preparing</span>
+              <span class="step-label">2. Kitchen Accepted</span>
+              <small class="step-sublabel">Preparing Brews</small>
             </div>
 
             <div class="step-node ${step3Class}">
               <div class="step-circle">🛍️</div>
-              <span class="step-label">Ready</span>
+              <span class="step-label">3. Ready / Out</span>
+              <small class="step-sublabel">Ready for Pickup</small>
             </div>
 
             <div class="step-node ${step4Class}">
               <div class="step-circle">✨</div>
-              <span class="step-label">Picked Up</span>
+              <span class="step-label">4. Fulfilled</span>
+              <small class="step-sublabel">Delivered &amp; Done</small>
             </div>
           </div>
         `
@@ -1260,11 +1588,12 @@ function renderUserOrders() {
         <div class="order-card-bottom">
           <div class="order-items-snippet">
             <strong>Items:</strong> ${escapeHtml(o.item)}
+            ${o.locationNote ? `<br><small class="text-muted">Landmark: ${escapeHtml(o.locationNote)}</small>` : ''}
           </div>
           ${
             isPending
               ? `<button class="btn-cancel-user-order" onclick="userCancelOrder(${o.id})">Cancel Order</button>`
-              : `<span class="text-muted" style="font-size: 0.75rem;">${isCompleted ? '✓ Completed' : 'In Kitchen'}</span>`
+              : `<span class="text-muted" style="font-size: 0.8rem;">${isCompleted ? '✓ Completed' : isCancelled ? 'Cancelled' : 'Kitchen Active'}</span>`
           }
         </div>
       </div>
@@ -1274,7 +1603,7 @@ function renderUserOrders() {
 }
 
 async function userCancelOrder(id) {
-  if (!confirm(`Cancel Order #${id}?`)) return;
+  if (!confirm(`Are you sure you want to cancel Order #${id}?`)) return;
 
   try {
     await apiCall('DELETE', `${BASE}/orders/${id}`);
@@ -1418,10 +1747,13 @@ document.getElementById('orderQuantity')?.addEventListener('input', updateOrderP
 document.getElementById('newOrderForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const customerName = document.getElementById('orderCustomerName').value.trim();
+  const phone = document.getElementById('orderCustomerPhone')?.value.trim() || '+91 98201 00000';
   const itemSelect = document.getElementById('orderItemSelect');
   const item = itemSelect.value;
   const quantity = Number(document.getElementById('orderQuantity').value) || 1;
+  const deliveryAddress = document.getElementById('orderDeliveryAddress')?.value.trim() || 'Counter Pickup';
   const locationId = Number(document.getElementById('orderLocationSelect').value);
+  const paymentMethod = document.getElementById('orderPaymentMethod')?.value || 'COD';
   const time = document.getElementById('orderTimeInput').value.trim();
 
   const selected = itemSelect.options[itemSelect.selectedIndex];
@@ -1430,10 +1762,13 @@ document.getElementById('newOrderForm')?.addEventListener('submit', async (e) =>
 
   const payload = {
     customerName,
+    phone,
+    deliveryAddress,
     locationId,
     item,
     quantity,
     amount,
+    paymentMethod,
     time,
     status: 'Pending',
   };
