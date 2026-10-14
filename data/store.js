@@ -1,23 +1,267 @@
-// In-memory data store — keeps this practical focused purely on REST
-// principles, routing, status codes, and validation (Mongoose/MongoDB
-// is used separately in Practical 6).
+// In-memory data store for Cafe Aroma REST API
+// Maintains state for Cafe, Locations, Menu, Orders, Reviews, and Users
 
 let cafe = {
   id: 1,
   name: 'Cafe Aroma',
-  tagline: 'Specialty coffee & cloud kitchen',
+  tagline: 'Specialty coffee & artisan bakery',
   location: 'Navi Mumbai',
-  rating: 4.7,
-  statement: 'We roast, brew, and bake fresh every single day for pickup near you.',
+  rating: 4.8,
+  statement: 'We roast, brew, and bake fresh every single day for quick pickup near you.',
 };
 
 let locations = [
-  { id: 1, name: 'Cafe Aroma - Panvel', address: 'Plot 2A, Panvel', rating: 4.7 },
-  { id: 2, name: 'Cafe Aroma - Kamothe', address: 'Sector 12, Kamothe', rating: 4.6 },
-  { id: 3, name: 'Cafe Aroma - Nerul', address: 'Sector 19, Nerul', rating: 4.8 },
+  { id: 1, name: 'Cafe Aroma - Panvel', address: 'Plot 2A, Sector 5, Panvel', rating: 4.7, phone: '+91 98201 12345' },
+  { id: 2, name: 'Cafe Aroma - Kamothe', address: 'Shop 12, Sector 12, Kamothe', rating: 4.6, phone: '+91 98202 23456' },
+  { id: 3, name: 'Cafe Aroma - Nerul', address: 'Plot 45, Sector 19, Nerul', rating: 4.9, phone: '+91 98203 34567' },
 ];
 
-let orders = [];
-let reviews = [];
+let users = [
+  {
+    id: 1,
+    name: 'Admin Manager',
+    email: 'admin@cafearoma.com',
+    password: 'admin',
+    role: 'admin',
+    phone: '+91 98200 11111',
+    joinedDate: '2026-01-10',
+  },
+  {
+    id: 2,
+    name: 'Rahul Sharma',
+    email: 'rahul@gmail.com',
+    password: 'user',
+    role: 'user',
+    phone: '+91 98201 22222',
+    joinedDate: '2026-02-14',
+  },
+  {
+    id: 3,
+    name: 'Ananya Iyer',
+    email: 'ananya@gmail.com',
+    password: 'user',
+    role: 'user',
+    phone: '+91 98202 33333',
+    joinedDate: '2026-03-01',
+  },
+  {
+    id: 4,
+    name: 'Rohan Patel',
+    email: 'rohan@gmail.com',
+    password: 'user',
+    role: 'user',
+    phone: '+91 98203 44444',
+    joinedDate: '2026-03-15',
+  },
+  {
+    id: 5,
+    name: 'Pooja Verma',
+    email: 'pooja@gmail.com',
+    password: 'user',
+    role: 'user',
+    phone: '+91 98204 55555',
+    joinedDate: '2026-03-22',
+  },
+];
 
-module.exports = { cafe, locations, orders, reviews };
+let menu = [
+  {
+    id: 1,
+    name: 'Espresso Romano',
+    price: 120,
+    category: 'Hot Coffee',
+    available: true,
+    description: 'Rich, full-bodied double shot with subtle citrus lemon twist.',
+    image: 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 2,
+    name: 'Artisan Cappuccino',
+    price: 160,
+    category: 'Hot Coffee',
+    available: true,
+    description: 'Equal parts espresso, steamed milk, and velvety foam dusted with cocoa.',
+    image: 'https://images.unsplash.com/photo-1534778101976-62847782c213?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 3,
+    name: 'Caramel Macchiato',
+    price: 190,
+    category: 'Hot Coffee',
+    available: true,
+    description: 'Vanilla-flavored syrup, steamed milk, marked with espresso & caramel drizzle.',
+    image: 'https://images.unsplash.com/photo-1485808191629-56ade4408d21?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 4,
+    name: 'Classic Cold Brew',
+    price: 180,
+    category: 'Cold Coffee',
+    available: true,
+    description: 'Steeped for 18 hours in cold filtered water for maximum smoothness and zero bitterness.',
+    image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 5,
+    name: 'Hazelnut Iced Latte',
+    price: 210,
+    category: 'Cold Coffee',
+    available: true,
+    description: 'Chilled espresso and milk infused with roasted hazelnut syrup over crystal ice.',
+    image: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 6,
+    name: 'French Butter Croissant',
+    price: 140,
+    category: 'Bakery',
+    available: true,
+    description: 'Flaky, golden-brown layers made with 100% French cultured butter.',
+    image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 7,
+    name: 'Blueberry Crumble Muffin',
+    price: 130,
+    category: 'Bakery',
+    available: true,
+    description: 'Moist vanilla muffin bursting with wild blueberries and butter crumble top.',
+    image: 'https://images.unsplash.com/photo-1607958996333-41aef7caefaa?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 8,
+    name: 'Grilled Herb Panini',
+    price: 180,
+    category: 'Snacks',
+    available: true,
+    description: 'Toasted sourdough with mozzarella, roasted bell peppers, and basil pesto.',
+    image: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 9,
+    name: 'Belgian Chocolate Waffle',
+    price: 220,
+    category: 'Bakery',
+    available: true,
+    description: 'Crisp malted waffle smothered in warm Belgian chocolate and almond flakes.',
+    image: 'https://images.unsplash.com/photo-1562376552-0d160a2f238d?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 10,
+    name: 'Avocado Sourdough Toast',
+    price: 210,
+    category: 'Snacks',
+    available: true,
+    description: 'Mashed Hass avocado on toasted artisanal sourdough with chili flakes & seeds.',
+    image: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=400&q=80',
+  },
+];
+
+let orders = [
+  {
+    id: 101,
+    userId: 2,
+    customerName: 'Rahul Sharma',
+    userEmail: 'rahul@gmail.com',
+    locationId: 1,
+    item: 'Caramel Macchiato',
+    items: [
+      { id: 3, name: 'Caramel Macchiato', price: 190, quantity: 1 },
+    ],
+    quantity: 1,
+    amount: 190,
+    time: '10:30 AM',
+    status: 'Completed',
+    createdAt: '2026-10-14T10:30:00Z',
+  },
+  {
+    id: 102,
+    userId: 3,
+    customerName: 'Ananya Iyer',
+    userEmail: 'ananya@gmail.com',
+    locationId: 3,
+    item: 'Hazelnut Iced Latte',
+    items: [
+      { id: 5, name: 'Hazelnut Iced Latte', price: 210, quantity: 2 },
+    ],
+    quantity: 2,
+    amount: 420,
+    time: '11:15 AM',
+    status: 'Completed',
+    createdAt: '2026-10-14T11:15:00Z',
+  },
+  {
+    id: 103,
+    userId: 4,
+    customerName: 'Rohan Patel',
+    userEmail: 'rohan@gmail.com',
+    locationId: 2,
+    item: 'French Butter Croissant',
+    items: [
+      { id: 6, name: 'French Butter Croissant', price: 140, quantity: 1 },
+    ],
+    quantity: 1,
+    amount: 140,
+    time: '12:00 PM',
+    status: 'Ready',
+    createdAt: '2026-10-14T12:00:00Z',
+  },
+  {
+    id: 104,
+    userId: 5,
+    customerName: 'Pooja Verma',
+    userEmail: 'pooja@gmail.com',
+    locationId: 1,
+    item: 'Classic Cold Brew',
+    items: [
+      { id: 4, name: 'Classic Cold Brew', price: 180, quantity: 1 },
+    ],
+    quantity: 1,
+    amount: 180,
+    time: '12:45 PM',
+    status: 'Preparing',
+    createdAt: '2026-10-14T12:45:00Z',
+  },
+  {
+    id: 105,
+    userId: 2,
+    customerName: 'Rahul Sharma',
+    userEmail: 'rahul@gmail.com',
+    locationId: 1,
+    item: 'Artisan Cappuccino',
+    items: [
+      { id: 2, name: 'Artisan Cappuccino', price: 160, quantity: 2 },
+    ],
+    quantity: 2,
+    amount: 320,
+    time: '01:15 PM',
+    status: 'Pending',
+    createdAt: '2026-10-14T13:15:00Z',
+  },
+];
+
+let reviews = [
+  {
+    id: 1,
+    author: 'Sneha Kapoor',
+    comment: 'The cold brew here is sublime! Smooth, balanced, and packs the right punch. My daily morning ritual.',
+    rating: 5,
+    date: 'Yesterday',
+  },
+  {
+    id: 2,
+    author: 'Amit Mishra',
+    comment: 'Quick pickup service at the Nerul branch. The butter croissants are flaky and authentic French quality.',
+    rating: 5,
+    date: '2 days ago',
+  },
+  {
+    id: 3,
+    author: 'Tanvi Shinde',
+    comment: 'Super cosy ambience and wonderful aroma as soon as you step in. The caramel macchiato is a must-try.',
+    rating: 4,
+    date: '3 days ago',
+  },
+];
+
+module.exports = { cafe, locations, menu, orders, reviews, users };

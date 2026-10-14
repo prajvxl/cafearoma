@@ -1,58 +1,877 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cafe Aroma — Ordering Portal</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cafe Aroma — Management Dashboard & Ordering Portal</title>
+  <!-- Google Fonts: Plus Jakarta Sans & Playfair Display -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap"
+    rel="stylesheet">
+  <!-- Chart.js for Admin sales & order distribution -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<header class="hero">
-  <div class="hero-text">
-    <p class="eyebrow">SPECIALTY COFFEE &amp; CLOUD KITCHEN</p>
-    <h1 id="cafeName">Cafe Aroma</h1>
-    <p id="cafeStatement" class="statement">Loading...</p>
-    <button id="orderBtn" class="btn-primary">Place an Order</button>
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <div class="app-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">☕</div>
+        <div class="brand-info">
+          <h2 id="brandCafeName">Cafe Aroma</h2>
+          <span class="brand-badge" id="sidebarRoleBadge">Admin Portal</span>
+        </div>
+        <button class="btn-close-sidebar" id="closeSidebarBtn" aria-label="Close sidebar">✕</button>
+      </div>
+
+      <!-- Current User Profile Card -->
+      <div class="sidebar-user-card" id="sidebarUserCard">
+        <div class="user-avatar" id="sidebarUserAvatar">🛡️</div>
+        <div class="user-details">
+          <strong id="sidebarUserName">Admin Manager</strong>
+          <span class="user-role-pill" id="sidebarUserRolePill">Administrator</span>
+        </div>
+      </div>
+
+      <!-- Dynamic Sidebar Navigation -->
+      <nav class="sidebar-nav" id="sidebarNav">
+        <!-- Rendered dynamically by script.js based on role (Admin vs User) -->
+      </nav>
+
+      <!-- Role Switcher & Evaluation Demo Helper -->
+      <div class="role-switcher-box">
+        <span class="switcher-label">Switch Role / Demo:</span>
+        <div class="switcher-btns">
+          <button class="btn-role-switch" id="btnSwitchAdmin" title="Switch to Admin Dashboard">
+            🛡️ Admin
+          </button>
+          <button class="btn-role-switch" id="btnSwitchUser" title="Switch to User Dashboard">
+            ☕ Customer
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <p class="project-tag">Practical 8 • College Mini Project</p>
+        <small class="tech-stack">Express REST • Multi-Dashboard System</small>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT WRAPPER -->
+    <div class="main-wrapper">
+      <!-- TOP NAVBAR -->
+      <header class="top-navbar">
+        <div class="navbar-left">
+          <button class="btn-icon mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu">☰</button>
+          <div>
+            <div class="nav-breadcrumbs">
+              <span class="breadcrumb-badge" id="activeDashboardBadge">Admin Dashboard</span>
+            </div>
+            <h1 class="page-title" id="pageHeaderTitle">Dashboard Overview</h1>
+          </div>
+        </div>
+
+        <div class="navbar-right">
+          <!-- Location indicator -->
+          <div class="location-badge" id="activeLocationBadge">
+            <span class="loc-pin">📍</span>
+            <span id="navbarLocationName">Navi Mumbai (3 Outlets)</span>
+          </div>
+
+          <!-- Customer Cart Button (Visible in User mode) -->
+          <button class="btn-cart" id="btnNavbarCart" style="display: none;" onclick="openCartDrawer()">
+            <span class="cart-icon">🛒</span>
+            <span class="cart-text">Cart</span>
+            <span class="cart-count" id="navbarCartCount">0</span>
+          </button>
+
+          <!-- Admin Quick Action Buttons (Visible in Admin mode) -->
+          <div class="admin-quick-actions" id="adminNavbarActions">
+            <button class="btn-secondary" id="btnQuickAddMenu">
+              <span>+</span> Add Item
+            </button>
+            <button class="btn-primary" id="btnQuickNewOrder">
+              <span>+</span> New Order
+            </button>
+          </div>
+
+          <!-- Auth / Profile Button -->
+          <button class="btn-auth" id="btnNavbarAuth" onclick="handleAuthButtonClick()">
+            <span id="btnAuthIcon">👤</span>
+            <span id="btnAuthText">Sign In</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- PAGE VIEWS CONTAINER -->
+      <main class="content-body">
+
+        <!-- ================================================================= -->
+        <!-- ADMIN DASHBOARD VIEWS -->
+        <!-- ================================================================= -->
+
+        <!-- 1. ADMIN OVERVIEW -->
+        <section id="view-admin-dashboard" class="tab-view active">
+          <!-- Hero Banner with Non-Overflowing Rating Circle -->
+          <div class="hero-banner">
+            <div class="hero-content">
+              <span class="hero-chip">Specialty Coffee &amp; Artisan Bakes</span>
+              <h2 id="heroCafeName">Welcome to Cafe Aroma</h2>
+              <p id="heroCafeStatement">We roast, brew, and bake fresh every single day for quick pickup near you.</p>
+              <div class="hero-actions">
+                <button class="btn-hero-primary" onclick="switchTab('admin-orders')">Manage Live Orders</button>
+                <button class="btn-hero-secondary" onclick="openOrderModal()">+ Create Order</button>
+              </div>
+            </div>
+            <div class="hero-badge-card">
+              <div class="circle-badge">
+                <div class="circle-rating-val">
+                  <span class="circle-star">★</span>
+                  <span class="rating-num" id="heroRating">4.8</span>
+                </div>
+                <span class="rating-label">RATING</span>
+              </div>
+              <div class="hero-badge-meta">
+                <div class="meta-item">
+                  <span class="meta-label">Google Reviews</span>
+                  <strong class="text-accent">4.8 ★★★★★</strong>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Primary Hub</span>
+                  <strong id="heroLocation">Navi Mumbai</strong>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Kitchen Status</span>
+                  <strong class="text-success">● Accepting Orders</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary Metric Cards -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-title">Total Orders</span>
+                <div class="metric-icon bg-amber">📋</div>
+              </div>
+              <div class="metric-value" id="statTotalOrders">0</div>
+              <div class="metric-footer">
+                <span class="badge-status badge-pending" id="statPendingOrders">0 Pending</span>
+                <span class="footer-note">Live from /api/orders</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-title">Total Revenue</span>
+                <div class="metric-icon bg-green">₹</div>
+              </div>
+              <div class="metric-value" id="statTotalRevenue">₹0</div>
+              <div class="metric-footer">
+                <span class="text-success" id="statCompletedOrders">0 Completed</span>
+                <span class="footer-note">Calculated sales</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-title">Menu Items</span>
+                <div class="metric-icon bg-brown">☕</div>
+              </div>
+              <div class="metric-value" id="statMenuItems">0</div>
+              <div class="metric-footer">
+                <span class="text-accent" id="statCategoriesCount">0 Categories</span>
+                <span class="footer-note">Live catalog</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-title">Registered Customers</span>
+                <div class="metric-icon bg-orange">👥</div>
+              </div>
+              <div class="metric-value" id="statTotalCustomers">0</div>
+              <div class="metric-footer">
+                <span class="badge-status badge-ready">Active Users</span>
+                <span class="footer-note">User Accounts</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts & Quick Actions Row -->
+          <div class="analytics-row">
+            <div class="card chart-card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Sales &amp; Orders Trend</h3>
+                  <p class="card-subtitle">Volume distribution across menu categories &amp; order statuses</p>
+                </div>
+                <div class="chart-toggle-group">
+                  <button class="btn-toggle active" id="btnChartCategory">Category</button>
+                  <button class="btn-toggle" id="btnChartStatus">Status</button>
+                </div>
+              </div>
+              <div class="chart-wrapper">
+                <canvas id="salesChart"></canvas>
+              </div>
+            </div>
+
+            <div class="card quick-actions-card">
+              <div class="card-header">
+                <h3 class="card-title">Admin Quick Actions</h3>
+                <p class="card-subtitle">Common operations</p>
+              </div>
+              <div class="quick-action-list">
+                <button class="action-tile" onclick="openOrderModal()">
+                  <div class="action-icon">🛍️</div>
+                  <div class="action-details">
+                    <strong>Create Order</strong>
+                    <span>Book order for customer</span>
+                  </div>
+                  <span class="action-arrow">→</span>
+                </button>
+
+                <button class="action-tile" onclick="openMenuModal()">
+                  <div class="action-icon">☕</div>
+                  <div class="action-details">
+                    <strong>Add Menu Item</strong>
+                    <span>Insert new coffee or bakery treat</span>
+                  </div>
+                  <span class="action-arrow">→</span>
+                </button>
+
+                <button class="action-tile" onclick="switchTab('admin-customers')">
+                  <div class="action-icon">👥</div>
+                  <div class="action-details">
+                    <strong>View Customers</strong>
+                    <span>Manage customer accounts &amp; spend</span>
+                  </div>
+                  <span class="action-arrow">→</span>
+                </button>
+
+                <button class="action-tile" onclick="switchTab('locations'); openLocationModal();">
+                  <div class="action-icon">📍</div>
+                  <div class="action-details">
+                    <strong>Add Outlet</strong>
+                    <span>Register a new branch</span>
+                  </div>
+                  <span class="action-arrow">→</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Orders Section -->
+          <div class="card table-card">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">Recent Orders</h3>
+                <p class="card-subtitle">Latest customer requests placed through the REST API</p>
+              </div>
+              <button class="btn-outline" onclick="switchTab('admin-orders')">View All Orders →</button>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Item &amp; Qty</th>
+                    <th>Branch</th>
+                    <th>Amount</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th>Quick Update</th>
+                  </tr>
+                </thead>
+                <tbody id="recentOrdersTableBody">
+                  <tr>
+                    <td colspan="8" class="text-center py-4">Loading recent orders...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. ADMIN MENU MANAGEMENT -->
+        <section id="view-admin-menu" class="tab-view">
+          <div class="section-toolbar">
+            <div class="toolbar-search">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="adminMenuSearchInput" placeholder="Search menu by name or description..." />
+            </div>
+
+            <div class="category-pills" id="adminCategoryPills">
+              <button class="pill active" data-cat="All">All Items</button>
+              <button class="pill" data-cat="Hot Coffee">Hot Coffee</button>
+              <button class="pill" data-cat="Cold Coffee">Cold Coffee</button>
+              <button class="pill" data-cat="Bakery">Bakery</button>
+              <button class="pill" data-cat="Snacks">Snacks</button>
+            </div>
+
+            <button class="btn-primary" onclick="openMenuModal()">
+              <span>+</span> Add Menu Item
+            </button>
+          </div>
+
+          <div class="menu-grid" id="adminMenuCardsGrid">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 3. ADMIN ALL ORDERS MANAGEMENT -->
+        <section id="view-admin-orders" class="tab-view">
+          <div class="section-toolbar">
+            <div class="toolbar-search">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="adminOrderSearchInput" placeholder="Search orders by customer or item..." />
+            </div>
+
+            <div class="category-pills" id="adminOrderStatusFilters">
+              <button class="pill active" data-status="All">All Orders (<span
+                  id="countAdminFilterAll">0</span>)</button>
+              <button class="pill" data-status="Pending">Pending (<span id="countAdminFilterPending">0</span>)</button>
+              <button class="pill" data-status="Preparing">Preparing (<span
+                  id="countAdminFilterPreparing">0</span>)</button>
+              <button class="pill" data-status="Ready">Ready (<span id="countAdminFilterReady">0</span>)</button>
+              <button class="pill" data-status="Completed">Completed (<span
+                  id="countAdminFilterCompleted">0</span>)</button>
+            </div>
+
+            <button class="btn-primary" onclick="openOrderModal()">
+              <span>+</span> Place New Order
+            </button>
+          </div>
+
+          <div class="card table-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Order #</th>
+                    <th>Customer Name</th>
+                    <th>Items Summary</th>
+                    <th>Branch</th>
+                    <th>Amount</th>
+                    <th>Pickup Time</th>
+                    <th>Status</th>
+                    <th>Update Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminOrdersTableBody">
+                  <tr>
+                    <td colspan="9" class="text-center py-4">Loading orders...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. ADMIN CUSTOMERS MANAGEMENT -->
+        <section id="view-admin-customers" class="tab-view">
+          <div class="section-toolbar">
+            <div>
+              <h3 class="font-serif">Registered Customers</h3>
+              <p class="text-muted">Customer profiles, order frequency, and lifetime revenue contribution</p>
+            </div>
+            <div class="toolbar-search">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="customerSearchInput" placeholder="Search customers by name or email..." />
+            </div>
+          </div>
+
+          <div class="card table-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Customer ID</th>
+                    <th>Full Name</th>
+                    <th>Email Address</th>
+                    <th>Phone</th>
+                    <th>Member Since</th>
+                    <th>Total Orders</th>
+                    <th>Total Spent</th>
+                    <th>Last Order</th>
+                  </tr>
+                </thead>
+                <tbody id="customersTableBody">
+                  <tr>
+                    <td colspan="8" class="text-center py-4">Loading customers data...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ================================================================= -->
+        <!-- USER / CUSTOMER DASHBOARD VIEWS -->
+        <!-- ================================================================= -->
+
+        <!-- 5. USER BROWSE MENU & CART ORDERING -->
+        <section id="view-user-menu" class="tab-view">
+          <!-- User Welcome Hero Banner -->
+          <div class="user-hero-banner">
+            <div class="user-hero-text">
+              <span class="user-greeting-chip" id="userGreetingChip">Welcome, Coffee Lover!</span>
+              <h2 id="userHeroHeading">Freshly Roasted Brews &amp; Artisan Treats</h2>
+              <p>Explore our handcrafted menu, customize your order, and pick it up freshly brewed at your nearest
+                branch.</p>
+            </div>
+            <div class="user-hero-cart-cta">
+              <button class="btn-hero-cart" onclick="openCartDrawer()">
+                <span class="cart-icon">🛒</span> View Cart (<span id="userHeroCartCount">0</span> Items)
+              </button>
+            </div>
+          </div>
+
+          <!-- Menu Search & Filter Bar -->
+          <div class="section-toolbar">
+            <div class="toolbar-search">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="userMenuSearchInput" placeholder="Search coffee, bakery, snacks..." />
+            </div>
+
+            <div class="category-pills" id="userCategoryPills">
+              <button class="pill active" data-cat="All">All Delights</button>
+              <button class="pill" data-cat="Hot Coffee">☕ Hot Coffee</button>
+              <button class="pill" data-cat="Cold Coffee">🧊 Cold Coffee</button>
+              <button class="pill" data-cat="Bakery">🥐 Bakery</button>
+              <button class="pill" data-cat="Snacks">🥪 Snacks</button>
+            </div>
+          </div>
+
+          <!-- Customer Menu Cards Grid with "Add to Cart" -->
+          <div class="menu-grid" id="userMenuCardsGrid">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 6. USER MY ORDERS & LIVE TRACKER -->
+        <section id="view-user-orders" class="tab-view">
+          <div class="section-toolbar">
+            <div>
+              <h3 class="font-serif">My Orders &amp; Live Pickup Status</h3>
+              <p class="text-muted">Track your order journey from our kitchen to your hands</p>
+            </div>
+            <button class="btn-primary" onclick="switchTab('user-menu')">
+              <span>☕</span> Order More
+            </button>
+          </div>
+
+          <!-- User Orders Container with Steppers -->
+          <div class="user-orders-list" id="userOrdersContainer">
+            <!-- Dynamically populated with interactive order cards and status steppers -->
+          </div>
+        </section>
+
+
+        <!-- ================================================================= -->
+        <!-- SHARED VIEWS (LOCATIONS, REVIEWS, API LOG) -->
+        <!-- ================================================================= -->
+
+        <!-- 7. LOCATIONS VIEW -->
+        <section id="view-locations" class="tab-view">
+          <div class="section-toolbar">
+            <div>
+              <h3 class="font-serif">Cafe Aroma Branches</h3>
+              <p class="text-muted">Cloud kitchens &amp; dine-in pickup counters</p>
+            </div>
+            <button class="btn-primary" id="btnAdminAddOutlet" onclick="openLocationModal()">
+              <span>+</span> Add Outlet
+            </button>
+          </div>
+
+          <div class="locations-grid" id="locationsGrid">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 8. REVIEWS VIEW -->
+        <section id="view-reviews" class="tab-view">
+          <div class="section-toolbar">
+            <div>
+              <h3 class="font-serif">Customer Testimonials</h3>
+              <p class="text-muted">Verified dining ratings collected through the REST API</p>
+            </div>
+            <button class="btn-primary" onclick="openReviewModal()">
+              <span>★</span> Write a Review
+            </button>
+          </div>
+
+          <div class="reviews-grid" id="reviewsGrid">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 9. REST API LIVE LOG VIEW -->
+        <section id="view-apilog" class="tab-view">
+          <div class="card log-card">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">REST API Requisition Log</h3>
+                <p class="card-subtitle">Real-time HTTP requests, response status codes, and payload tracking</p>
+              </div>
+              <button class="btn-outline btn-sm" id="btnClearLog">Clear Log</button>
+            </div>
+            <div class="log-container">
+              <ul class="log-entries-list" id="fullLogList">
+                <li class="log-empty">No API calls recorded in this session yet.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
   </div>
-  <div class="hero-card">
-    <div class="rating-circle"><span id="cafeRating">-</span><small>rating</small></div>
-    <div class="detail-row"><span>Location</span><strong id="cafeLocation">-</strong></div>
-    <div class="detail-row"><span>Status</span><strong>API connected — localhost:3000</strong></div>
+
+  <!-- ===================================================================== -->
+  <!-- MODALS & DRAWERS -->
+  <!-- ===================================================================== -->
+
+  <!-- 1. AUTHENTICATION (LOGIN / REGISTER) MODAL -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal-dialog auth-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title font-serif" id="authModalTitle">Sign In to Cafe Aroma</h3>
+        <button class="modal-close" onclick="closeAuthModal()">✕</button>
+      </div>
+
+      <!-- Quick Demo Login Bar for Evaluators / Viva -->
+      <div class="demo-login-banner">
+        <span>⚡ Quick 1-Click Evaluation Login:</span>
+        <div class="demo-buttons">
+          <button type="button" class="btn-demo-badge" onclick="demoLogin('admin')">
+            🛡️ Admin Mode
+          </button>
+          <button type="button" class="btn-demo-badge" onclick="demoLogin('user')">
+            ☕ Customer (Rahul)
+          </button>
+        </div>
+      </div>
+
+      <!-- Auth Tabs: Login vs Register -->
+      <div class="auth-tab-bar">
+        <button type="button" class="auth-tab-btn active" id="tabBtnLogin" onclick="switchAuthTab('login')">
+          Sign In
+        </button>
+        <button type="button" class="auth-tab-btn" id="tabBtnRegister" onclick="switchAuthTab('register')">
+          Create Account
+        </button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" class="auth-form-panel active">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="loginEmail">Email Address or Username</label>
+            <input type="text" id="loginEmail" placeholder="admin@cafearoma.com or rahul@gmail.com" required />
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter password (default: admin or user)" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeAuthModal()">Cancel</button>
+          <button type="submit" class="btn-primary" id="btnSubmitLogin">Sign In &amp; Continue</button>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="auth-form-panel">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="regName">Full Name <span class="required">*</span></label>
+            <input type="text" id="regName" placeholder="e.g. Priya Sharma" required />
+          </div>
+          <div class="form-group">
+            <label for="regEmail">Email Address <span class="required">*</span></label>
+            <input type="email" id="regEmail" placeholder="priya@example.com" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="regPhone">Contact Phone</label>
+              <input type="tel" id="regPhone" placeholder="+91 98200 12345" />
+            </div>
+            <div class="form-group">
+              <label for="regPassword">Password <span class="required">*</span></label>
+              <input type="password" id="regPassword" placeholder="Create password" required />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeAuthModal()">Cancel</button>
+          <button type="submit" class="btn-primary" id="btnSubmitRegister">Register Account</button>
+        </div>
+      </form>
+    </div>
   </div>
-</header>
 
-<section class="locations">
-  <h2>Pickup Locations</h2>
-  <div id="locationCards" class="cards"></div>
-</section>
+  <!-- 2. SHOPPING CART DRAWER (USER DASHBOARD) -->
+  <div class="cart-drawer-overlay" id="cartDrawerOverlay" onclick="closeCartDrawer()"></div>
+  <aside class="cart-drawer" id="cartDrawer">
+    <div class="cart-drawer-header">
+      <div class="cart-header-title">
+        <span class="cart-icon">🛒</span>
+        <h3>Your Order Cart</h3>
+        <span class="cart-badge-count" id="cartDrawerCount">0</span>
+      </div>
+      <button class="btn-close-cart" onclick="closeCartDrawer()">✕</button>
+    </div>
 
-<section class="order-form">
-  <h2>Place an Order</h2>
-  <form id="orderForm">
-    <input type="text" id="customerName" placeholder="Your name" required>
-    <select id="locationSelect" required></select>
-    <input type="text" id="itemInput" placeholder="Item (e.g. Cappuccino)" required>
-    <input type="text" id="timeInput" placeholder="Pickup time (e.g. 5:30 PM)" required>
-    <button type="submit" class="btn-primary">Confirm Order</button>
-  </form>
-</section>
+    <!-- Cart Items List -->
+    <div class="cart-drawer-body">
+      <div id="cartItemsContainer" class="cart-items-list">
+        <!-- Rendered dynamically -->
+      </div>
 
-<section class="orders-list">
-  <h2>Live Orders</h2>
-  <ul id="ordersList"></ul>
-</section>
+      <!-- Checkout Options -->
+      <div class="cart-checkout-options" id="cartCheckoutOptions">
+        <div class="form-group">
+          <label for="cartLocationSelect">Pickup Branch <span class="required">*</span></label>
+          <select id="cartLocationSelect" required>
+            <!-- Populated from /api/locations -->
+          </select>
+        </div>
 
-<section class="reviews">
-  <h2>Customer Reviews</h2>
-  <ul id="reviewsList"></ul>
-</section>
+        <div class="form-group">
+          <label for="cartPickupTime">Estimated Pickup Time <span class="required">*</span></label>
+          <select id="cartPickupTime" required>
+            <option value="15 minutes">In 15 minutes (Express)</option>
+            <option value="30 minutes">In 30 minutes</option>
+            <option value="45 minutes">In 45 minutes</option>
+            <option value="1 hour">In 1 hour</option>
+          </select>
+        </div>
+      </div>
+    </div>
 
-<section class="req-log">
-  <h3>API Requisition Log</h3>
-  <ul id="logList"></ul>
-</section>
+    <!-- Cart Footer & Total Calculation -->
+    <div class="cart-drawer-footer">
+      <div class="cart-pricing-breakdown">
+        <div class="pricing-row">
+          <span>Items Subtotal</span>
+          <span id="cartSubtotal">₹0</span>
+        </div>
+        <div class="pricing-row">
+          <span>GST &amp; Cafe Tax (5%)</span>
+          <span id="cartTax">₹0</span>
+        </div>
+        <div class="pricing-row total-row">
+          <strong>Grand Total</strong>
+          <strong id="cartGrandTotal">₹0</strong>
+        </div>
+      </div>
 
-<script src="script.js"></script>
+      <button class="btn-checkout-order" id="btnConfirmCartOrder" onclick="checkoutCartOrder()">
+        Confirm &amp; Place Order →
+      </button>
+    </div>
+  </aside>
+
+  <!-- 3. ADMIN PLACE ORDER MODAL (Reused from previous) -->
+  <div class="modal-overlay" id="orderModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title font-serif">☕ Place a New Order</h3>
+        <button class="modal-close" onclick="closeOrderModal()">✕</button>
+      </div>
+      <form id="newOrderForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="orderCustomerName">Customer Name <span class="required">*</span></label>
+            <input type="text" id="orderCustomerName" placeholder="e.g. Rahul Sharma" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="orderItemSelect">Select Coffee / Item <span class="required">*</span></label>
+              <select id="orderItemSelect" required>
+                <option value="">-- Choose from Menu --</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="orderQuantity">Quantity</label>
+              <input type="number" id="orderQuantity" min="1" max="20" value="1" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="orderLocationSelect">Pickup Outlet <span class="required">*</span></label>
+              <select id="orderLocationSelect" required>
+                <option value="">-- Choose Location --</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="orderTimeInput">Pickup Time <span class="required">*</span></label>
+              <input type="text" id="orderTimeInput" placeholder="e.g. 15 mins / 4:30 PM" required />
+            </div>
+          </div>
+
+          <div class="order-pricing-summary">
+            <span>Estimated Total:</span>
+            <strong id="orderPriceCalc">₹0</strong>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeOrderModal()">Cancel</button>
+          <button type="submit" class="btn-primary" id="btnSubmitOrder">Confirm &amp; Dispatch Order</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. ADD/EDIT MENU ITEM MODAL -->
+  <div class="modal-overlay" id="menuModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title font-serif" id="menuModalTitle">Add Menu Item</h3>
+        <button class="modal-close" onclick="closeMenuModal()">✕</button>
+      </div>
+      <form id="menuItemForm">
+        <input type="hidden" id="menuItemId" value="" />
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="menuItemName">Item Name <span class="required">*</span></label>
+            <input type="text" id="menuItemName" placeholder="e.g. Spanish Latte" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="menuItemCategory">Category <span class="required">*</span></label>
+              <select id="menuItemCategory" required>
+                <option value="Hot Coffee">Hot Coffee</option>
+                <option value="Cold Coffee">Cold Coffee</option>
+                <option value="Bakery">Bakery</option>
+                <option value="Snacks">Snacks</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="menuItemPrice">Price (₹) <span class="required">*</span></label>
+              <input type="number" id="menuItemPrice" min="10" max="2000" placeholder="e.g. 180" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="menuItemDesc">Description</label>
+            <textarea id="menuItemDesc" rows="2"
+              placeholder="Brief enticing description of ingredients and roast..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="menuItemImage">Image URL (Optional)</label>
+            <input type="url" id="menuItemImage" placeholder="https://images.unsplash.com/..." />
+            <small class="form-hint">Leave blank to use a high-quality default cafe photo.</small>
+          </div>
+
+          <div class="form-check">
+            <input type="checkbox" id="menuItemAvailable" checked />
+            <label for="menuItemAvailable">Mark as In-Stock &amp; Available for Order</label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeMenuModal()">Cancel</button>
+          <button type="submit" class="btn-primary" id="btnSubmitMenu">Save Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 5. ADD LOCATION MODAL -->
+  <div class="modal-overlay" id="locationModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title font-serif">Register New Outlet</h3>
+        <button class="modal-close" onclick="closeLocationModal()">✕</button>
+      </div>
+      <form id="newLocationForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="locName">Branch Name <span class="required">*</span></label>
+            <input type="text" id="locName" placeholder="e.g. Cafe Aroma - Vashi" required />
+          </div>
+          <div class="form-group">
+            <label for="locAddress">Full Address <span class="required">*</span></label>
+            <input type="text" id="locAddress" placeholder="e.g. Sector 17, Vashi, Navi Mumbai" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="locRating">Initial Rating (1.0 - 5.0)</label>
+              <input type="number" id="locRating" step="0.1" min="1.0" max="5.0" value="4.8" />
+            </div>
+            <div class="form-group">
+              <label for="locPhone">Contact Phone</label>
+              <input type="tel" id="locPhone" placeholder="+91 98200 00000" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeLocationModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Add Outlet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 6. ADD REVIEW MODAL -->
+  <div class="modal-overlay" id="reviewModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title font-serif">Leave Customer Feedback</h3>
+        <button class="modal-close" onclick="closeReviewModal()">✕</button>
+      </div>
+      <form id="newReviewForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="reviewAuthor">Your Name <span class="required">*</span></label>
+            <input type="text" id="reviewAuthor" placeholder="e.g. Sneha K." required />
+          </div>
+          <div class="form-group">
+            <label for="reviewRating">Rating</label>
+            <select id="reviewRating">
+              <option value="5">★★★★★ (5 Stars - Exceptional)</option>
+              <option value="4">★★★★☆ (4 Stars - Very Good)</option>
+              <option value="3">★★★☆☆ (3 Stars - Average)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="reviewComment">Review Comment <span class="required">*</span></label>
+            <textarea id="reviewComment" rows="3"
+              placeholder="Share your experience with our coffee, service, or bakery..." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeReviewModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Post Review</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
+
 </html>
